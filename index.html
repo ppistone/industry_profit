@@ -4561,6 +4561,16 @@ function yoyTd(y){
   const cls = y>=0 ? "up" : "down";
   return `<td class="${cls}">${y>=0?"+":""}${y.toFixed(1)}%</td>`;
 }
+// 数值着色：同比负（跌）→绿，正（涨）→红，无同比→不强制着色（沿用卡片原有配色）
+function valStyle(y){
+  if(y==null) return "";
+  return `style="color:${y>=0?'var(--red)':'var(--green)'}"`;
+}
+// 表格数值单元格的 up/down 类（依同比正负）
+function valCls(y){
+  if(y==null) return "";
+  return y>=0 ? "up" : "down";
+}
 
 function render(){
   document.getElementById("indTitle").textContent = cur;
@@ -4582,9 +4592,9 @@ function render(){
   }
   const periodTag = mode==="cum" ? `${view.labels[last]}累计` : `${view.labels[last]}单月`;
   document.getElementById("cards").innerHTML = `
-    <div class="card c-rev"><div class="label">营业收入（${periodTag}）</div><div class="val">${fmt(view.vals.revenue[last])}<small>亿元</small></div>${yoyHtml(revY)}</div>
-    <div class="card c-cost"><div class="label">营业成本（${periodTag}）</div><div class="val">${fmt(view.vals.cost[last])}<small>亿元</small></div>${yoyHtml(costY)}</div>
-    <div class="card c-profit"><div class="label">利润总额（${periodTag}）</div><div class="val">${fmt(view.vals.profit[last])}<small>亿元</small></div>${yoyHtml(profY)}</div>`;
+    <div class="card c-rev"><div class="label">营业收入（${periodTag}）</div><div class="val" ${valStyle(revY)}>${fmt(view.vals.revenue[last])}<small>亿元</small></div>${yoyHtml(revY)}</div>
+    <div class="card c-cost"><div class="label">营业成本（${periodTag}）</div><div class="val" ${valStyle(costY)}>${fmt(view.vals.cost[last])}<small>亿元</small></div>${yoyHtml(costY)}</div>
+    <div class="card c-profit"><div class="label">利润总额（${periodTag}）</div><div class="val" ${valStyle(profY)}>${fmt(view.vals.profit[last])}<small>亿元</small></div>${yoyHtml(profY)}</div>`;
   document.getElementById("chartHint").textContent = mode==="cum" ? "（累计值，统计局口径）" : "（单月值：1月、2月各为1-2月累计的一半，3月起为相邻累计之差）";
   drawLine("chartRev","revenue","#2563eb",view);
   drawLine("chartCost","cost","#f59e0b",view);
@@ -4674,7 +4684,10 @@ function drawTable(view){
   const revY = yoyArr(view,"revenue"), costY = yoyArr(view,"cost"), profY = yoyArr(view,"profit");
   let html = `<thead><tr><th>期间</th><th>营业收入(亿元)</th><th>营收同比</th><th>营业成本(亿元)</th><th>成本同比</th><th>利润总额(亿元)</th><th>利润同比</th></tr></thead><tbody>`;
   for(let i=view.labels.length-1;i>=0;i--){
-    html += `<tr><td>${view.labels[i]}</td><td>${fmt(revM[i])}</td>${yoyTd(revY[i])}<td>${fmt(costM[i])}</td>${yoyTd(costY[i])}<td class="${profM[i]<0?"neg":""}">${fmt(profM[i])}</td>${yoyTd(profY[i])}</tr>`;
+    const revCls = valCls(revY[i]);
+    const costCls = valCls(costY[i]);
+    const profCls = profY[i]!=null ? valCls(profY[i]) : (profM[i]<0?"neg":"");
+    html += `<tr><td>${view.labels[i]}</td><td class="${revCls}">${fmt(revM[i])}</td>${yoyTd(revY[i])}<td class="${costCls}">${fmt(costM[i])}</td>${yoyTd(costY[i])}<td class="${profCls}">${fmt(profM[i])}</td>${yoyTd(profY[i])}</tr>`;
   }
   html += `</tbody>`;
   document.getElementById("dataTable").innerHTML = html;
