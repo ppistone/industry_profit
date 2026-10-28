@@ -97,8 +97,8 @@ svg text{font-family:inherit}
       <div id="chartProfit"></div>
     </div>
     <div class="panel">
-      <h3>明细数据</h3>
-      <div style="max-height:460px;overflow-y:auto">
+      <h3>明细数据<span class="hint">（含同比：红涨绿跌）</span></h3>
+      <div style="max-height:460px;overflow:auto">
         <table id="dataTable"></table>
       </div>
       <div class="footer-note">
@@ -106,7 +106,8 @@ svg text{font-family:inherit}
         ② "单月值"中，每年 <b>1 月、2 月各自取当年 1-2月累计值的一半</b>（如 2026年1-2月累计 16316.5，则 1月 = 2月 = 8158.25），3 月及以后为相邻两期累计之差；<br>
         ③ 除 1/2 月外，单月值为差分推算，仅供趋势参考，非官方单月统计；<br>
         ④ 石油、煤炭及其他燃料加工业部分期次上年同期为亏损，同比不可比（统计局注1）。<br>
-        ⑤ 行业释义依据《国民经济行业分类》（GB/T 4754-2017，2019年修订）。
+        ⑤ 行业释义依据《国民经济行业分类》（GB/T 4754-2017，2019年修订）。<br>
+        ⑥ 同比 = 本年同期 ÷ 上一年同期 − 1；首年（2025年1-2月/1月）无上年同期数据，留空。
       </div>
     </div>
   </main>
@@ -225,6 +226,16 @@ function yoyLast(view, metric){
   if(a!=null&&b!=null&&b!==0) return (a/b-1)*100;
   return null;
 }
+function yoyArr(view, metric){
+  const arr = view.vals[metric];
+  const off = mode==="cum" ? YEAR_OFFSET_CUM : YEAR_OFFSET_MON;
+  return arr.map((v,i)=> (v!=null && i-off>=0 && arr[i-off]!=null && arr[i-off]!==0) ? (v/arr[i-off]-1)*100 : null);
+}
+function yoyTd(y){
+  if(y==null) return `<td>—</td>`;
+  const cls = y>=0 ? "up" : "down";
+  return `<td class="${cls}">${y>=0?"+":""}${y.toFixed(1)}%</td>`;
+}
 
 function render(){
   document.getElementById("indTitle").textContent = cur;
@@ -320,9 +331,10 @@ function drawLine(target, metric, color, view, h=340){
 }
 function drawTable(view){
   const revM = view.vals.revenue, costM = view.vals.cost, profM = view.vals.profit;
-  let html = `<thead><tr><th>期间</th><th>营业收入</th><th>营业成本</th><th>利润总额</th></tr></thead><tbody>`;
+  const revY = yoyArr(view,"revenue"), costY = yoyArr(view,"cost"), profY = yoyArr(view,"profit");
+  let html = `<thead><tr><th>期间</th><th>营业收入(亿元)</th><th>营收同比</th><th>营业成本(亿元)</th><th>成本同比</th><th>利润总额(亿元)</th><th>利润同比</th></tr></thead><tbody>`;
   for(let i=view.labels.length-1;i>=0;i--){
-    html += `<tr><td>${view.labels[i]}</td><td>${fmt(revM[i])}</td><td>${fmt(costM[i])}</td><td class="${profM[i]<0?"neg":""}">${fmt(profM[i])}</td></tr>`;
+    html += `<tr><td>${view.labels[i]}</td><td>${fmt(revM[i])}</td>${yoyTd(revY[i])}<td>${fmt(costM[i])}</td>${yoyTd(costY[i])}<td class="${profM[i]<0?"neg":""}">${fmt(profM[i])}</td>${yoyTd(profY[i])}</tr>`;
   }
   html += `</tbody>`;
   document.getElementById("dataTable").innerHTML = html;
