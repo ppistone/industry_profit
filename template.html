@@ -72,6 +72,13 @@ svg text{font-family:inherit}
 .contact-fab .qr-pop img{width:176px;height:176px;display:block;margin:0 auto;border-radius:6px;background:#f1f5f9}
 .contact-fab .qr-pop .qr-cap{font-size:12.5px;color:var(--sub);margin-top:9px;line-height:1.55}
 .contact-fab .qr-pop::after{content:"";position:absolute;right:-8px;top:50%;transform:translateY(-50%);border:8px solid transparent;border-left-color:#fff}
+/* 图表悬浮提示框（即时，无系统延迟） */
+#chartTip{position:fixed;z-index:99;background:rgba(31,36,48,.96);color:#fff;font-size:12px;line-height:1.75;padding:8px 11px;border-radius:8px;pointer-events:none;opacity:0;transition:opacity .06s;white-space:nowrap;box-shadow:0 6px 22px rgba(0,0,0,.28)}
+#chartTip.show{opacity:1}
+#chartTip .t-lab{font-weight:700;margin-bottom:4px;font-size:12.5px}
+#chartTip .t-row{display:flex;gap:14px;justify-content:space-between;align-items:baseline}
+#chartTip .t-k{opacity:.78}
+#chartTip .t-val{font-weight:700}
 </style>
 </head>
 <body>
@@ -281,6 +288,29 @@ function getView(){
 }
 
 function fmt(v){return v==null?"—":v.toLocaleString("zh-CN",{maximumFractionDigits:1});}
+// 即时悬浮提示框（替代原生 <title>，无系统延迟）
+function showTip(e, html){ const t=document.getElementById("chartTip"); t.innerHTML=html; t.classList.add("show"); moveTip(e); }
+function moveTip(e){
+  const t=document.getElementById("chartTip");
+  const r=t.getBoundingClientRect();
+  let x=e.clientX+14, y=e.clientY+14;
+  if(x+r.width>window.innerWidth-8) x=e.clientX-r.width-14;
+  if(y+r.height>window.innerHeight-8) y=e.clientY-r.height-14;
+  t.style.left=x+"px"; t.style.top=y+"px";
+}
+function hideTip(){ document.getElementById("chartTip").classList.remove("show"); }
+function attachTips(box){
+  box.querySelectorAll("[data-lab]").forEach(el=>{
+    const lab=el.getAttribute("data-lab");
+    const val=el.getAttribute("data-val");
+    const yoy=el.getAttribute("data-yoy");
+    const h=`<div class="t-lab">${lab}</div><div class="t-row"><span class="t-k">数值</span><b class="t-val">${val} 亿元</b></div>`+
+            (yoy!=="" ? `<div class="t-row"><span class="t-k">同比</span><b class="t-val" style="color:${Number(yoy)>=0?'#ff8fa3':'#5eead4'}">${Number(yoy)>=0?'+':''}${yoy}%</b></div>` : "");
+    el.addEventListener("mouseenter", e=>showTip(e,h));
+    el.addEventListener("mousemove", moveTip);
+    el.addEventListener("mouseleave", hideTip);
+  });
+}
 function yoyLast(view, metric){
   const arr = view.vals[metric];
   const i = arr.length-1;
@@ -378,11 +408,11 @@ function drawLine(target, metric, color, view, h=340){
     if(v==null)return;
     const x=X(i), top=Y2(v), base=y0b, y=Math.min(top,base), bh=Math.abs(top-base);
     const fill= v>=0? "#e11d48":"#059669";
-    svg += `<rect x="${(x-barW/2).toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(bh,0.5).toFixed(1)}" fill="${fill}" opacity="0.5"><title>${view.labels[i]} 同比 ${v>=0?"+":""}${v.toFixed(1)}%</title></rect>`;
+    svg += `<rect class="pt" x="${(x-barW/2).toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(bh,0.5).toFixed(1)}" fill="${fill}" opacity="0.5" data-lab="${view.labels[i]}" data-val="${fmt(vals[i])}" data-yoy="${v.toFixed(1)}"></rect>`;
     const shift = (i%2===0)?0:9;
     let ty = v>=0 ? top-3-shift : top+9+shift;
     ty = Math.max(T+8, Math.min(H-B-8, ty));
-    svg += `<text x="${x.toFixed(1)}" y="${ty.toFixed(1)}" font-size="8" text-anchor="middle" fill="${fill}">${v>=0?"+":""}${v.toFixed(1)}</text>`;
+    svg += `<text x="${x.toFixed(1)}" y="${ty.toFixed(1)}" font-size="8" text-anchor="middle" fill="${fill}" pointer-events="none">${v>=0?"+":""}${v.toFixed(1)}</text>`;
   });
   // 折线：数值（数据点上方直接标注数值，错开两排避免重叠）
   let pts=[];
@@ -390,10 +420,12 @@ function drawLine(target, metric, color, view, h=340){
     if(v==null)return;
     const x=X(i),y=Y(v);
     pts.push(`${x},${y}`);
-    svg+=`<circle cx="${x}" cy="${y}" r="3" fill="${color}"><title>${view.labels[i]} ${fmt(v)} 亿元</title></circle>`;
+    svg+=`<circle cx="${x}" cy="${y}" r="3" fill="${color}" pointer-events="none"></circle>`;
     const off = (i%2===0)?9:20;
     const ly = Math.max(T+8, y-off);
-    svg+=`<text x="${x.toFixed(1)}" y="${ly.toFixed(1)}" font-size="8.5" text-anchor="middle" fill="${color}">${fmt(v)}</text>`;
+    svg+=`<text x="${x.toFixed(1)}" y="${ly.toFixed(1)}" font-size="8.5" text-anchor="middle" fill="${color}" pointer-events="none">${fmt(v)}</text>`;
+    // 透明放大命中区（r=12），便于悬停
+    svg+=`<circle class="pt" cx="${x}" cy="${y}" r="12" fill="transparent" data-lab="${view.labels[i]}" data-val="${fmt(v)}" data-yoy="${yo[i]!=null?yo[i].toFixed(1):''}"></circle>`;
   });
   if(pts.length) svg += `<polyline points="${pts.join(" ")}" fill="none" stroke="${color}" stroke-width="2"/>`;
   // X 轴标签
@@ -403,6 +435,7 @@ function drawLine(target, metric, color, view, h=340){
   });
   svg += `</svg>`;
   box.innerHTML = svg;
+  attachTips(box);
 }
 function drawTable(view){
   const revM = view.vals.revenue, costM = view.vals.cost, profM = view.vals.profit;
@@ -432,5 +465,6 @@ document.getElementById("contactFab").addEventListener("click", function(e){
   }
 });
 </script>
+<div id="chartTip"></div>
 </body>
 </html>
