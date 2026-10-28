@@ -55,6 +55,9 @@ svg text{font-family:inherit}
 .legend{display:flex;gap:16px;font-size:12px;color:var(--sub);margin-bottom:4px}
 .legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
 .legend .lg-rev::before{background:var(--blue)} .legend .lg-cost::before{background:var(--orange)} .legend .lg-profit::before{background:var(--red)}
+.combo-legend{display:flex;gap:14px;font-size:11px;color:var(--sub);margin:-4px 0 8px;flex-wrap:wrap}
+.combo-legend span{display:inline-block;width:12px;height:8px;border-radius:2px;margin-right:4px;vertical-align:0}
+.cl-line{background:#2563eb}.cl-up{background:#e11d48}.cl-dn{background:#059669}
 </style>
 </head>
 <body>
@@ -71,8 +74,8 @@ svg text{font-family:inherit}
     <div class="main-head">
       <h2 id="indTitle"></h2>
       <div class="toggle">
-        <button id="btnCum" class="on">累计值（统计局口径）</button>
-        <button id="btnMon">单月值（1/2月均分）</button>
+        <button id="btnCum">累计值（统计局口径）</button>
+        <button id="btnMon" class="on">单月值（1/2月均分）</button>
       </div>
     </div>
     <div class="ind-meta" id="indMeta"></div>
@@ -80,14 +83,17 @@ svg text{font-family:inherit}
     <div class="cards" id="cards"></div>
     <div class="panel">
       <h3>营业收入走势<span class="hint" id="chartHint"></span></h3>
+      <div class="combo-legend"><span class="cl-line" style="background:#2563eb"></span>数值（左轴·亿元）<span class="cl-up"></span>同比↑（右轴·%）<span class="cl-dn"></span>同比↓</div>
       <div id="chartRev"></div>
     </div>
     <div class="panel">
       <h3>营业成本走势</h3>
+      <div class="combo-legend"><span class="cl-line" style="background:#f59e0b"></span>数值（左轴·亿元）<span class="cl-up"></span>同比↑（右轴·%）<span class="cl-dn"></span>同比↓</div>
       <div id="chartCost"></div>
     </div>
     <div class="panel">
       <h3>利润总额走势</h3>
+      <div class="combo-legend"><span class="cl-line" style="background:#e11d48"></span>数值（左轴·亿元）<span class="cl-up"></span>同比↑（右轴·%）<span class="cl-dn"></span>同比↓</div>
       <div id="chartProfit"></div>
     </div>
     <div class="panel">
@@ -155,7 +161,7 @@ const IND_INFO = {
 };
 
 const P = DATA.periods, LB = DATA.period_labels;
-let cur = DATA.industries[0], mode = "cum", lastView = null;
+let cur = DATA.industries[0], mode = "mon", lastView = null;
 const YEAR_OFFSET_CUM = 11; // 每年累计期数（02..12）
 const YEAR_OFFSET_MON = 12; // 每年月数
 
@@ -166,7 +172,7 @@ function buildList(filter=""){
     const b = document.createElement("button");
     b.textContent = n;
     if(n===cur) b.classList.add("active");
-    b.onclick = ()=>{cur=n; mode="cum"; document.getElementById("btnCum").classList.add("on"); document.getElementById("btnMon").classList.remove("on"); render(); buildList(document.getElementById("search").value);};
+    b.onclick = ()=>{cur=n; render(); buildList(document.getElementById("search").value);};
     listEl.appendChild(b);
   });
 }
@@ -252,9 +258,9 @@ function scale(vals,pad=0.08){
   const rng = mx-mn; mx += rng*pad; if(mn<0) mn -= rng*pad;
   return {mn,mx};
 }
-function drawLine(target, metric, color, view, h=320){
+function drawLine(target, metric, color, view, h=340){
   const box = document.getElementById(target);
-  const W = box.clientWidth||800, H = h, L=70, R=20, T=16, B=60;
+  const W = box.clientWidth||800, H = h, L=64, R=46, T=16, B=62;
   const iw = W-L-R, ih = H-T-B;
   const labs = view.short, vals = view.vals[metric];
   const all = vals.filter(v=>v!=null);
@@ -263,17 +269,39 @@ function drawLine(target, metric, color, view, h=320){
   const n = labs.length;
   const X = i=> n===1? L+iw/2 : L + iw*i/(n-1);
   const Y = v=> T + ih*(1-(v-mn)/(mx-mn));
+  // 同比序列（柱）：与模式对应，逐年偏移
+  const off = mode==="cum"?YEAR_OFFSET_CUM:YEAR_OFFSET_MON;
+  const yo = vals.map((v,i)=> (v!=null && i-off>=0 && vals[i-off]!=null && vals[i-off]!==0)? (v/vals[i-off]-1)*100 : null);
+  const yoVals = yo.filter(v=>v!=null);
+  let yMn=0,yMx=0;
+  if(yoVals.length){yMn=Math.min(0,...yoVals);yMx=Math.max(0,...yoVals);}
+  if(yMx===yMn){yMx=yMn+1;}
+  const r2=yMx-yMn; yMx+=r2*0.12; yMn-= (yMn<0? r2*0.12 : 0);
+  if(yMn===0) yMn=-r2*0.12;
+  const Y2 = v=> T + ih*(1-(v-yMn)/(yMx-yMn));
   let svg = `<svg width="100%" viewBox="0 0 ${W} ${H}">`;
+  // 左轴：数值网格 + 标签
   for(let g=0;g<=5;g++){
     const v = mn + (mx-mn)*g/5, y = Y(v);
     svg += `<line x1="${L}" y1="${y}" x2="${W-R}" y2="${y}" stroke="#eef1f5"/>`;
     svg += `<text x="${L-8}" y="${y+4}" text-anchor="end" font-size="11" fill="#8a93a3">${Math.round(v).toLocaleString()}</text>`;
   }
   if(mn<0){const y0=Y(0); svg += `<line x1="${L}" y1="${y0}" x2="${W-R}" y2="${y0}" stroke="#c3cad6" stroke-dasharray="4 3"/>`;}
-  labs.forEach((s,i)=>{
-    const x = X(i);
-    svg += `<text x="${x}" y="${H-B+16}" font-size="10" fill="#8a93a3" text-anchor="end" transform="rotate(-38 ${x} ${H-B+16})">${s}</text>`;
+  // 右轴：同比 0 基线 + 极值标签
+  const y0b=Y2(0);
+  svg += `<line x1="${L}" y1="${y0b}" x2="${W-R}" y2="${y0b}" stroke="#d8dee8"/>`;
+  svg += `<text x="${W-R+4}" y="${Y2(yMx)+4}" font-size="10" fill="#94a3b8">${yMx>=0?"+":""}${yMx.toFixed(0)}%</text>`;
+  svg += `<text x="${W-R+4}" y="${y0b+4}" font-size="10" fill="#94a3b8">0%</text>`;
+  svg += `<text x="${W-R+4}" y="${Y2(yMn)+4}" font-size="10" fill="#94a3b8">${yMn>=0?"+":""}${yMn.toFixed(0)}%</text>`;
+  // 柱状：同比
+  const barW = Math.max(3, iw/n*0.46);
+  yo.forEach((v,i)=>{
+    if(v==null)return;
+    const x=X(i), top=Y2(v), base=y0b, y=Math.min(top,base), bh=Math.abs(top-base);
+    const fill= v>=0? "#e11d48":"#059669";
+    svg += `<rect x="${(x-barW/2).toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(bh,0.5).toFixed(1)}" fill="${fill}" opacity="0.5"><title>${view.labels[i]} 同比 ${v>=0?"+":""}${v.toFixed(1)}%</title></rect>`;
   });
+  // 折线：数值
   let pts=[];
   vals.forEach((v,i)=>{
     if(v==null)return;
@@ -282,6 +310,11 @@ function drawLine(target, metric, color, view, h=320){
     svg+=`<circle cx="${x}" cy="${y}" r="3" fill="${color}"><title>${view.labels[i]} ${fmt(v)} 亿元</title></circle>`;
   });
   if(pts.length) svg += `<polyline points="${pts.join(" ")}" fill="none" stroke="${color}" stroke-width="2"/>`;
+  // X 轴标签
+  labs.forEach((s,i)=>{
+    const x = X(i);
+    svg += `<text x="${x}" y="${H-B+16}" font-size="10" fill="#8a93a3" text-anchor="end" transform="rotate(-38 ${x} ${H-B+16})">${s}</text>`;
+  });
   svg += `</svg>`;
   box.innerHTML = svg;
 }
