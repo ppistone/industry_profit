@@ -73,9 +73,12 @@ svg text{font-family:inherit}
     </div>
     <div class="cards" id="cards"></div>
     <div class="panel">
-      <h3>营业收入 / 营业成本 / 利润总额 走势<span class="hint" id="chartHint"></span></h3>
-      <div class="legend"><span class="lg-rev">营业收入</span><span class="lg-cost">营业成本</span><span class="lg-profit">利润总额</span></div>
-      <div id="chartMain"></div>
+      <h3>营业收入走势<span class="hint" id="chartHint"></span></h3>
+      <div id="chartRev"></div>
+    </div>
+    <div class="panel">
+      <h3>营业成本走势</h3>
+      <div id="chartCost"></div>
     </div>
     <div class="panel">
       <h3>利润总额走势</h3>
@@ -88,7 +91,8 @@ svg text{font-family:inherit}
       </div>
       <div class="footer-note">
         注：① 统计局仅公布累计值（1-2月、1-3月……），"单月值"为相邻两期累计值之差，由本页推算，仅供趋势参考；<br>
-        ② 每年 1 月无单独发布，1-2 月合并公布；③ 石油、煤炭及其他燃料加工业部分期次上年同期为亏损，同比不可比（统计局注1）。
+        ② 每年 1 月无单独发布，1-2 月合并公布，故时间轴上第一个点为「当年1-2月」（2025年1月单月统计局不单独披露，无法提供）；<br>
+        ③ 石油、煤炭及其他燃料加工业部分期次上年同期为亏损，同比不可比（统计局注1）。
       </div>
     </div>
   </main>
@@ -125,7 +129,6 @@ function series(key, metric){
 }
 function fmt(v){return v==null?"—":v.toLocaleString("zh-CN",{maximumFractionDigits:1});}
 function yoy2026(metric){
-  // 2026 各期 vs 2025 同期累计
   const n2025 = 11;
   const out = {};
   for(let i=n2025;i<P.length;i++){
@@ -139,7 +142,6 @@ function render(){
   document.getElementById("indTitle").textContent = cur;
   const d = DATA.data[cur];
   const last = P.length-1;
-  // cards
   const revY = yoy2026("revenue")[last], costY = yoy2026("cost")[last], profY = yoy2026("profit")[last];
   function yoyHtml(y){
     if(y==null) return "";
@@ -151,74 +153,31 @@ function render(){
     <div class="card c-cost"><div class="label">营业成本（${LB[last]}累计）</div><div class="val">${fmt(d.cost[last])}<small>亿元</small></div>${yoyHtml(costY)}</div>
     <div class="card c-profit"><div class="label">利润总额（${LB[last]}累计）</div><div class="val">${fmt(d.profit[last])}<small>亿元</small></div>${yoyHtml(profY)}</div>`;
   document.getElementById("chartHint").textContent = mode==="cum" ? "（累计值）" : "（单月值，1-2月为合并公布无单月拆分）";
-  drawMain(); drawProfit(); drawTable();
+  drawLine("chartRev","revenue","#2563eb");
+  drawLine("chartCost","cost","#f59e0b");
+  drawLine("chartProfit","profit","#e11d48");
+  drawTable();
 }
 
-/* ---------- lightweight SVG charts ---------- */
-function chartFrame(w,h){return {w,h};}
+const COLORS = {revenue:"#2563eb", cost:"#f59e0b", profit:"#e11d48"};
 function scale(vals,pad=0.08){
   let vs = vals.filter(v=>v!=null);
   let mn = Math.min(0,...vs), mx = Math.max(...vs);
   if(mx===mn){mx = mn+1;}
-  const rng = mx-mn; mx += rng*pad; if(mn<0) mn -= rng*pad; 
+  const rng = mx-mn; mx += rng*pad; if(mn<0) mn -= rng*pad;
   return {mn,mx};
 }
-const COLORS = {revenue:"#2563eb", cost:"#f59e0b", profit:"#e11d48"};
-
-function drawMulti(target, keys, h=300){
+function drawLine(target, metric, color, h=320){
   const box = document.getElementById(target);
-  const W = box.clientWidth||800, H = h, L=70, R=20, T=16, B=54;
+  const W = box.clientWidth||800, H = h, L=70, R=20, T=16, B=60;
   const iw = W-L-R, ih = H-T-B;
-  const allSeries = keys.map(k=>({k, vals:series(cur,k)}));
-  const all = allSeries.flatMap(s=>s.vals).filter(v=>v!=null);
+  const vals = series(cur,metric);
+  const all = vals.filter(v=>v!=null);
   if(!all.length){box.innerHTML="<div style='color:#999;padding:40px;text-align:center'>暂无数据</div>";return;}
   const {mn,mx} = scale(all);
   const X = i=> P.length===1? L+iw/2 : L + iw*i/(P.length-1);
   const Y = v=> T + ih*(1-(v-mn)/(mx-mn));
   let svg = `<svg width="100%" viewBox="0 0 ${W} ${H}">`;
-  // grid + y labels
-  for(let g=0;g<=5;g++){
-    const v = mn + (mx-mn)*g/5, y = Y(v);
-    svg += `<line x1="${L}" y1="${y}" x2="${W-R}" y2="${y}" stroke="#eef1f5"/>`;
-    svg += `<text x="${L-8}" y="${y+4}" text-anchor="end" font-size="11" fill="#8a93a3">${Math.round(v).toLocaleString()}</text>`;
-  }
-  // x labels (rotate)
-  P.forEach((p,i)=>{
-    const x = X(i);
-    svg += `<text x="${x}" y="${H-B+16}" font-size="10" fill="#8a93a3" text-anchor="end" transform="rotate(-38 ${x} ${H-B+16})">${LB[i].replace("年","'").replace("1-","/")}</text>`;
-  });
-  // zero line
-  if(mn<0){const y0=Y(0); svg += `<line x1="${L}" y1="${y0}" x2="${W-R}" y2="${y0}" stroke="#c3cad6" stroke-dasharray="4 3"/>`;}
-  // profit bars behind
-  const prof = series(cur,"profit");
-  const bw = Math.min(18, iw/P.length*0.35);
-  prof.forEach((v,i)=>{
-    if(v==null)return;
-    const y0=Y(0),y=Y(v);
-    svg += `<rect x="${X(i)-bw/2}" y="${Math.min(y0,y)}" width="${bw}" height="${Math.max(1,Math.abs(y-y0))}" fill="${COLORS.profit}" opacity="0.75" rx="2"><title>${LB[i]} 利润总额 ${fmt(v)} 亿元</title></rect>`;
-  });
-  // lines
-  allSeries.forEach(s=>{
-    if(s.k==="profit")return;
-    let path="",pts=[];
-    s.vals.forEach((v,i)=>{ if(v==null){return;} const x=X(i),y=Y(v); pts.push(`${x},${y}`); svg+=`<circle cx="${x}" cy="${y}" r="3" fill="${COLORS[s.k]}"><title>${LB[i]} ${s.k==="revenue"?"营业收入":"营业成本"} ${fmt(v)} 亿元</title></circle>`;});
-    if(pts.length) svg += `<polyline points="${pts.join(" ")}" fill="none" stroke="${COLORS[s.k]}" stroke-width="2"/>`;
-  });
-  svg += `</svg>`;
-  box.innerHTML = svg;
-}
-
-function drawBars(target, metric, h=260){
-  const box = document.getElementById(target);
-  const W = box.clientWidth||800, H = h, L=70, R=20, T=16, B=54;
-  const iw = W-L-R, ih = H-T-B;
-  const vals = series(cur,metric);
-  const all = vals.filter(v=>v!=null);
-  if(!all.length){box.innerHTML="<div style='color:#999;padding:40px;text-align:center'>暂无数据</div>";return;}
-  const {mn,mx} = scale(vals);
-  const X = i=> L + iw*i/(P.length-1);
-  const Y = v=> T + ih*(1-(v-mn)/(mx-mn));
-  let svg = `<svg width="100%" viewBox="0 0 ${W} ${H}">`;
   for(let g=0;g<=5;g++){
     const v = mn + (mx-mn)*g/5, y = Y(v);
     svg += `<line x1="${L}" y1="${y}" x2="${W-R}" y2="${y}" stroke="#eef1f5"/>`;
@@ -229,23 +188,20 @@ function drawBars(target, metric, h=260){
     const x = X(i);
     svg += `<text x="${x}" y="${H-B+16}" font-size="10" fill="#8a93a3" text-anchor="end" transform="rotate(-38 ${x} ${H-B+16})">${LB[i].replace("年","'").replace("1-","/")}</text>`;
   });
-  const bw = Math.min(24, iw/P.length*0.55);
+  let pts=[];
   vals.forEach((v,i)=>{
     if(v==null)return;
-    const y0=Y(0),y=Y(v);
-    const color = v>=0 ? COLORS.profit : "#059669";
-    svg += `<rect x="${X(i)-bw/2}" y="${Math.min(y0,y)}" width="${bw}" height="${Math.max(1,Math.abs(y-y0))}" fill="${color}" opacity="0.85" rx="2"><title>${LB[i]} 利润总额 ${fmt(v)} 亿元</title></rect>`;
+    const x=X(i),y=Y(v);
+    pts.push(`${x},${y}`);
+    svg+=`<circle cx="${x}" cy="${y}" r="3" fill="${color}"><title>${LB[i]} ${fmt(v)} 亿元</title></circle>`;
   });
+  if(pts.length) svg += `<polyline points="${pts.join(" ")}" fill="none" stroke="${color}" stroke-width="2"/>`;
   svg += `</svg>`;
   box.innerHTML = svg;
 }
-function drawMain(){ drawMulti("chartMain",["revenue","cost","profit"],320); }
-function drawProfit(){ drawBars("chartProfit","profit",240); }
-
 function drawTable(){
   const d = DATA.data[cur];
   const revM = series(cur,"revenue"), costM = series(cur,"cost"), profM = series(cur,"profit");
-  const yoyR = yoy2026("revenue"), yoyC = yoy2026("cost"), yoyP = yoy2026("profit");
   let html = `<thead><tr><th>期间</th><th>营业收入</th><th>营业成本</th><th>利润总额</th></tr></thead><tbody>`;
   for(let i=P.length-1;i>=0;i--){
     const r=d.revenue[i],c=d.cost[i],p=d.profit[i];
@@ -255,7 +211,7 @@ function drawTable(){
   document.getElementById("dataTable").innerHTML = html;
 }
 buildList(); render();
-window.addEventListener("resize", ()=>{drawMain();drawProfit();});
+window.addEventListener("resize", ()=>{drawLine("chartRev","revenue","#2563eb");drawLine("chartCost","cost","#f59e0b");drawLine("chartProfit","profit","#e11d48");});
 </script>
 </body>
 </html>

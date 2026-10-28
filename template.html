@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>规模以上工业企业分行业财务指标看板</title>
+<style>
+:root{
+  --bg:#f5f7fa; --panel:#ffffff; --border:#e5e8ee; --text:#1f2430; --sub:#6b7280;
+  --blue:#2563eb; --orange:#f59e0b; --red:#e11d48; --green:#059669;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+header h1{font-size:17px;font-weight:700}
+header .meta{font-size:12px;color:var(--sub)}
+.layout{display:flex;flex:1;overflow:hidden}
+aside{width:250px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.search-wrap{padding:10px 12px;border-bottom:1px solid var(--border)}
+.search-wrap input{width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;outline:none}
+.search-wrap input:focus{border-color:var(--blue)}
+#industryList{flex:1;overflow-y:auto;padding:6px}
+#industryList button{display:block;width:100%;text-align:left;padding:8px 10px;border:none;background:none;border-radius:6px;font-size:13px;cursor:pointer;color:var(--text);line-height:1.4}
+#industryList button:hover{background:#f0f4ff}
+#industryList button.active{background:var(--blue);color:#fff;font-weight:600}
+main{flex:1;overflow-y:auto;padding:18px 22px}
+.main-head{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px}
+.main-head h2{font-size:20px}
+.toggle{display:flex;gap:0;border:1px solid var(--border);border-radius:6px;overflow:hidden;font-size:12px}
+.toggle button{border:none;background:var(--panel);padding:6px 14px;cursor:pointer;color:var(--sub)}
+.toggle button.on{background:var(--blue);color:#fff}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:12px 0 16px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.card .label{font-size:12px;color:var(--sub);margin-bottom:6px}
+.card .val{font-size:22px;font-weight:700}
+.card .val small{font-size:12px;font-weight:400;color:var(--sub);margin-left:4px}
+.card .yoy{font-size:12px;margin-top:4px}
+.up{color:var(--red)} .down{color:var(--green)}
+.card.c-rev .val{color:var(--blue)} .card.c-cost .val{color:var(--orange)} .card.c-profit .val{color:var(--red)}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px}
+.panel h3{font-size:14px;margin-bottom:10px;color:var(--text)}
+.panel .hint{font-size:11px;color:var(--sub);font-weight:400;margin-left:8px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
+th{background:#f8fafc;font-weight:600;position:sticky;top:0}
+td:first-child,th:first-child{text-align:left}
+td.neg{color:var(--green)}
+tr:hover td{background:#f8fafc}
+.footer-note{font-size:11px;color:var(--sub);margin-top:8px;line-height:1.7}
+svg text{font-family:inherit}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--sub);margin-bottom:4px}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.legend .lg-rev::before{background:var(--blue)} .legend .lg-cost::before{background:var(--orange)} .legend .lg-profit::before{background:var(--red)}
+</style>
+</head>
+<body>
+<header>
+  <h1>规模以上工业企业分行业财务指标看板</h1>
+  <div class="meta">数据来源：国家统计局《全国规模以上工业企业利润》月度发布 · 累计值 · 单位：亿元 · 更新至 <span id="latestLabel"></span></div>
+</header>
+<div class="layout">
+  <aside>
+    <div class="search-wrap"><input id="search" type="text" placeholder="搜索行业…"></div>
+    <div id="industryList"></div>
+  </aside>
+  <main>
+    <div class="main-head">
+      <h2 id="indTitle"></h2>
+      <div class="toggle">
+        <button id="btnCum" class="on">累计值（统计局口径）</button>
+        <button id="btnMon">单月值（差分推算）</button>
+      </div>
+    </div>
+    <div class="cards" id="cards"></div>
+    <div class="panel">
+      <h3>营业收入走势<span class="hint" id="chartHint"></span></h3>
+      <div id="chartRev"></div>
+    </div>
+    <div class="panel">
+      <h3>营业成本走势</h3>
+      <div id="chartCost"></div>
+    </div>
+    <div class="panel">
+      <h3>利润总额走势</h3>
+      <div id="chartProfit"></div>
+    </div>
+    <div class="panel">
+      <h3>明细数据</h3>
+      <div style="max-height:420px;overflow-y:auto">
+        <table id="dataTable"></table>
+      </div>
+      <div class="footer-note">
+        注：① 统计局仅公布累计值（1-2月、1-3月……），"单月值"为相邻两期累计值之差，由本页推算，仅供趋势参考；<br>
+        ② 每年 1 月无单独发布，1-2 月合并公布，故时间轴上第一个点为「当年1-2月」（2025年1月单月统计局不单独披露，无法提供）；<br>
+        ③ 石油、煤炭及其他燃料加工业部分期次上年同期为亏损，同比不可比（统计局注1）。
+      </div>
+    </div>
+  </main>
+</div>
+<script>
+const DATA = __DATA__;
+const P = DATA.periods, LB = DATA.period_labels;
+let cur = DATA.industries[0], mode = "cum";
+
+const listEl = document.getElementById("industryList");
+function buildList(filter=""){
+  listEl.innerHTML = "";
+  DATA.industries.filter(n=>n.includes(filter)).forEach(n=>{
+    const b = document.createElement("button");
+    b.textContent = n;
+    if(n===cur) b.classList.add("active");
+    b.onclick = ()=>{cur=n; mode="cum"; document.getElementById("btnCum").classList.add("on"); document.getElementById("btnMon").classList.remove("on"); render(); buildList(document.getElementById("search").value);};
+    listEl.appendChild(b);
+  });
+}
+document.getElementById("search").oninput = e=>buildList(e.target.value.trim());
+document.getElementById("btnCum").onclick = ()=>{mode="cum";document.getElementById("btnCum").classList.add("on");document.getElementById("btnMon").classList.remove("on");render();};
+document.getElementById("btnMon").onclick = ()=>{mode="mon";document.getElementById("btnMon").classList.add("on");document.getElementById("btnCum").classList.remove("on");render();};
+document.getElementById("latestLabel").textContent = LB[P.length-1];
+
+function series(key, metric){
+  const arr = DATA.data[key][metric].slice();
+  if(mode==="cum") return arr;
+  const out = [null]; // 1-2月无单月拆分
+  for(let i=1;i<arr.length;i++){
+    out.push(arr[i]!=null&&arr[i-1]!=null ? +(arr[i]-arr[i-1]).toFixed(1) : null);
+  }
+  return out;
+}
+function fmt(v){return v==null?"—":v.toLocaleString("zh-CN",{maximumFractionDigits:1});}
+function yoy2026(metric){
+  const n2025 = 11;
+  const out = {};
+  for(let i=n2025;i<P.length;i++){
+    const a = DATA.data[cur][metric][i], b = DATA.data[cur][metric][i-n2025];
+    out[i] = (a!=null&&b!=null&&b!==0) ? (a/b-1)*100 : null;
+  }
+  return out;
+}
+
+function render(){
+  document.getElementById("indTitle").textContent = cur;
+  const d = DATA.data[cur];
+  const last = P.length-1;
+  const revY = yoy2026("revenue")[last], costY = yoy2026("cost")[last], profY = yoy2026("profit")[last];
+  function yoyHtml(y){
+    if(y==null) return "";
+    const cls = y>=0?"up":"down", s = y>=0?"+":"";
+    return `<div class="yoy ${cls}">同比 ${s}${y.toFixed(1)}%</div>`;
+  }
+  document.getElementById("cards").innerHTML = `
+    <div class="card c-rev"><div class="label">营业收入（${LB[last]}累计）</div><div class="val">${fmt(d.revenue[last])}<small>亿元</small></div>${yoyHtml(revY)}</div>
+    <div class="card c-cost"><div class="label">营业成本（${LB[last]}累计）</div><div class="val">${fmt(d.cost[last])}<small>亿元</small></div>${yoyHtml(costY)}</div>
+    <div class="card c-profit"><div class="label">利润总额（${LB[last]}累计）</div><div class="val">${fmt(d.profit[last])}<small>亿元</small></div>${yoyHtml(profY)}</div>`;
+  document.getElementById("chartHint").textContent = mode==="cum" ? "（累计值）" : "（单月值，1-2月为合并公布无单月拆分）";
+  drawLine("chartRev","revenue","#2563eb");
+  drawLine("chartCost","cost","#f59e0b");
+  drawLine("chartProfit","profit","#e11d48");
+  drawTable();
+}
+
+const COLORS = {revenue:"#2563eb", cost:"#f59e0b", profit:"#e11d48"};
+function scale(vals,pad=0.08){
+  let vs = vals.filter(v=>v!=null);
+  let mn = Math.min(0,...vs), mx = Math.max(...vs);
+  if(mx===mn){mx = mn+1;}
+  const rng = mx-mn; mx += rng*pad; if(mn<0) mn -= rng*pad;
+  return {mn,mx};
+}
+function drawLine(target, metric, color, h=320){
+  const box = document.getElementById(target);
+  const W = box.clientWidth||800, H = h, L=70, R=20, T=16, B=60;
+  const iw = W-L-R, ih = H-T-B;
+  const vals = series(cur,metric);
+  const all = vals.filter(v=>v!=null);
+  if(!all.length){box.innerHTML="<div style='color:#999;padding:40px;text-align:center'>暂无数据</div>";return;}
+  const {mn,mx} = scale(all);
+  const X = i=> P.length===1? L+iw/2 : L + iw*i/(P.length-1);
+  const Y = v=> T + ih*(1-(v-mn)/(mx-mn));
+  let svg = `<svg width="100%" viewBox="0 0 ${W} ${H}">`;
+  for(let g=0;g<=5;g++){
+    const v = mn + (mx-mn)*g/5, y = Y(v);
+    svg += `<line x1="${L}" y1="${y}" x2="${W-R}" y2="${y}" stroke="#eef1f5"/>`;
+    svg += `<text x="${L-8}" y="${y+4}" text-anchor="end" font-size="11" fill="#8a93a3">${Math.round(v).toLocaleString()}</text>`;
+  }
+  if(mn<0){const y0=Y(0); svg += `<line x1="${L}" y1="${y0}" x2="${W-R}" y2="${y0}" stroke="#c3cad6" stroke-dasharray="4 3"/>`;}
+  P.forEach((p,i)=>{
+    const x = X(i);
+    svg += `<text x="${x}" y="${H-B+16}" font-size="10" fill="#8a93a3" text-anchor="end" transform="rotate(-38 ${x} ${H-B+16})">${LB[i].replace("年","'").replace("1-","/")}</text>`;
+  });
+  let pts=[];
+  vals.forEach((v,i)=>{
+    if(v==null)return;
+    const x=X(i),y=Y(v);
+    pts.push(`${x},${y}`);
+    svg+=`<circle cx="${x}" cy="${y}" r="3" fill="${color}"><title>${LB[i]} ${fmt(v)} 亿元</title></circle>`;
+  });
+  if(pts.length) svg += `<polyline points="${pts.join(" ")}" fill="none" stroke="${color}" stroke-width="2"/>`;
+  svg += `</svg>`;
+  box.innerHTML = svg;
+}
+function drawTable(){
+  const d = DATA.data[cur];
+  const revM = series(cur,"revenue"), costM = series(cur,"cost"), profM = series(cur,"profit");
+  let html = `<thead><tr><th>期间</th><th>营业收入</th><th>营业成本</th><th>利润总额</th></tr></thead><tbody>`;
+  for(let i=P.length-1;i>=0;i--){
+    const r=d.revenue[i],c=d.cost[i],p=d.profit[i];
+    html += `<tr><td>${LB[i]}</td><td>${fmt(mode==="cum"?r:revM[i])}</td><td>${fmt(mode==="cum"?c:costM[i])}</td><td class="${(mode==="cum"?p:profM[i])<0?"neg":""}">${fmt(mode==="cum"?p:profM[i])}</td></tr>`;
+  }
+  html += `</tbody>`;
+  document.getElementById("dataTable").innerHTML = html;
+}
+buildList(); render();
+window.addEventListener("resize", ()=>{drawLine("chartRev","revenue","#2563eb");drawLine("chartCost","cost","#f59e0b");drawLine("chartProfit","profit","#e11d48");});
+</script>
+</body>
+</html>
