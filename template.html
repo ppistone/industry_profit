@@ -64,6 +64,14 @@ svg text{font-family:inherit}
 .comp-t{font-family:ui-monospace,Consolas,monospace;background:#eef2ff;color:#3730a3;border-radius:4px;padding:1px 6px;font-size:12px;white-space:nowrap}
 .comp-item.muted{color:var(--sub);border:none}
 @media(max-width:640px){.comp-grid{grid-template-columns:1fr}}
+/* 联系作者 悬浮按钮（右侧垂直贴边） */
+.contact-fab{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:50;display:flex;align-items:center;flex-direction:row-reverse}
+.contact-fab .fab-btn{writing-mode:vertical-rl;letter-spacing:3px;background:var(--blue);color:#fff;font-size:13px;font-weight:600;padding:16px 7px;border-radius:8px 0 0 8px;cursor:pointer;box-shadow:-2px 0 10px rgba(0,0,0,.15);user-select:none;white-space:nowrap}
+.contact-fab .qr-pop{position:absolute;right:46px;top:50%;transform:translateY(-50%);background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;box-shadow:0 8px 28px rgba(0,0,0,.18);width:200px;text-align:center;opacity:0;visibility:hidden;transition:opacity .18s;pointer-events:none}
+.contact-fab:hover .qr-pop,.contact-fab.open .qr-pop{opacity:1;visibility:visible}
+.contact-fab .qr-pop img{width:176px;height:176px;display:block;margin:0 auto;border-radius:6px;background:#f1f5f9}
+.contact-fab .qr-pop .qr-cap{font-size:12.5px;color:var(--sub);margin-top:9px;line-height:1.55}
+.contact-fab .qr-pop::after{content:"";position:absolute;right:-8px;top:50%;transform:translateY(-50%);border:8px solid transparent;border-left-color:#fff}
 </style>
 </head>
 <body>
@@ -406,8 +414,23 @@ function drawTable(view){
   html += `</tbody>`;
   document.getElementById("dataTable").innerHTML = html;
 }
-buildList(); render();
+  buildList(); render();
 window.addEventListener("resize", ()=>{ if(lastView){drawLine("chartRev","revenue","#2563eb",lastView);drawLine("chartCost","cost","#f59e0b",lastView);drawLine("chartProfit","profit","#e11d48",lastView);} });
+</script>
+<div class="contact-fab" id="contactFab">
+  <div class="fab-btn">联系作者</div>
+  <div class="qr-pop">
+    <img src="qrcode.png" alt="作者公众号二维码">
+    <div class="qr-cap">微信扫一扫<br>关注作者公众号</div>
+  </div>
+</div>
+<script>
+// 触屏设备（无 hover）：点击按钮切换二维码弹窗
+document.getElementById("contactFab").addEventListener("click", function(e){
+  if(window.matchMedia("(hover:none)").matches || e.target.classList.contains("fab-btn")){
+    this.classList.toggle("open");
+  }
+});
 </script>
 </body>
 </html>
