@@ -24,8 +24,12 @@ aside{width:250px;background:var(--panel);border-right:1px solid var(--border);d
 #industryList button:hover{background:#f0f4ff}
 #industryList button.active{background:var(--blue);color:#fff;font-weight:600}
 main{flex:1;overflow-y:auto;padding:18px 22px}
-.main-head{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:6px}
+.main-head{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px}
 .main-head h2{font-size:20px}
+.ind-meta{font-size:12px;color:var(--sub);margin-bottom:6px}
+.ind-meta .code{display:inline-block;background:#eef2ff;color:#3730a3;border-radius:4px;padding:1px 7px;font-weight:600;margin-right:6px}
+.ind-desc{font-size:12.5px;color:#4b5563;background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:14px;line-height:1.65}
+.ind-desc b{color:var(--text)}
 .toggle{display:flex;gap:0;border:1px solid var(--border);border-radius:6px;overflow:hidden;font-size:12px}
 .toggle button{border:none;background:var(--panel);padding:6px 14px;cursor:pointer;color:var(--sub)}
 .toggle button.on{background:var(--blue);color:#fff}
@@ -46,7 +50,7 @@ th{background:#f8fafc;font-weight:600;position:sticky;top:0}
 td:first-child,th:first-child{text-align:left}
 td.neg{color:var(--green)}
 tr:hover td{background:#f8fafc}
-.footer-note{font-size:11px;color:var(--sub);margin-top:8px;line-height:1.7}
+.footer-note{font-size:11px;color:var(--sub);margin-top:8px;line-height:1.8}
 svg text{font-family:inherit}
 .legend{display:flex;gap:16px;font-size:12px;color:var(--sub);margin-bottom:4px}
 .legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
@@ -68,9 +72,11 @@ svg text{font-family:inherit}
       <h2 id="indTitle"></h2>
       <div class="toggle">
         <button id="btnCum" class="on">累计值（统计局口径）</button>
-        <button id="btnMon">单月值（差分推算）</button>
+        <button id="btnMon">单月值（1/2月均分）</button>
       </div>
     </div>
+    <div class="ind-meta" id="indMeta"></div>
+    <div class="ind-desc" id="indDesc"></div>
     <div class="cards" id="cards"></div>
     <div class="panel">
       <h3>营业收入走势<span class="hint" id="chartHint"></span></h3>
@@ -86,21 +92,72 @@ svg text{font-family:inherit}
     </div>
     <div class="panel">
       <h3>明细数据</h3>
-      <div style="max-height:420px;overflow-y:auto">
+      <div style="max-height:460px;overflow-y:auto">
         <table id="dataTable"></table>
       </div>
       <div class="footer-note">
-        注：① 统计局仅公布累计值（1-2月、1-3月……），"单月值"为相邻两期累计值之差，由本页推算，仅供趋势参考；<br>
-        ② 每年 1 月无单独发布，1-2 月合并公布，故时间轴上第一个点为「当年1-2月」（2025年1月单月统计局不单独披露，无法提供）；<br>
-        ③ 石油、煤炭及其他燃料加工业部分期次上年同期为亏损，同比不可比（统计局注1）。
+        注：① 统计局仅公布<b>累计值</b>（1-2月、1-3月……），"累计值"为官方原始口径；<br>
+        ② "单月值"中，每年 <b>1 月、2 月各自取当年 1-2月累计值的一半</b>（如 2026年1-2月累计 16316.5，则 1月 = 2月 = 8158.25），3 月及以后为相邻两期累计之差；<br>
+        ③ 除 1/2 月外，单月值为差分推算，仅供趋势参考，非官方单月统计；<br>
+        ④ 石油、煤炭及其他燃料加工业部分期次上年同期为亏损，同比不可比（统计局注1）。<br>
+        ⑤ 行业释义依据《国民经济行业分类》（GB/T 4754-2017，2019年修订）。
       </div>
     </div>
   </main>
 </div>
 <script>
 const DATA = __DATA__;
+
+// 国民经济行业分类（GB/T 4754-2017，2019年修订）：大类代码 + 门类 + 释义
+const IND_INFO = {
+"总计":{code:"—",sect:"全部工业",desc:"全国规模以上工业企业整体汇总，涵盖全部 41 个工业大类。"},
+"煤炭开采和洗选业":{code:"06",sect:"B 采矿业",desc:"指对各种煤炭（烟煤、无烟煤、褐煤等）的开采、洗选、分级等生产活动。"},
+"石油和天然气开采业":{code:"07",sect:"B 采矿业",desc:"指对石油、天然气（含煤层气等）进行的勘探、开采活动。"},
+"黑色金属矿采选业":{code:"08",sect:"B 采矿业",desc:"指对铁矿石、锰矿、铬矿等黑色金属矿的采选活动。"},
+"有色金属矿采选业":{code:"09",sect:"B 采矿业",desc:"指对常用有色金属（铜、铅、锌、铝等）、贵金属（金、银等）、稀有稀土金属矿的采选。"},
+"非金属矿采选业":{code:"10",sect:"B 采矿业",desc:"指对土砂石、化学矿、采盐及其他非金属矿的采选。"},
+"开采专业及辅助性活动":{code:"11",sect:"B 采矿业",desc:"指为煤炭、石油、天然气等矿产资源开采提供的辅助性服务（如钻井、测井、井下作业等）。"},
+"其他采矿业":{code:"12",sect:"B 采矿业",desc:"指上述未列明的其他采矿业。"},
+"农副食品加工业":{code:"13",sect:"C 制造业",desc:"指直接以农、林、牧、渔业产品为原料进行的谷物磨制、饲料加工、植物油和制糖加工、屠宰及肉类水产加工等。"},
+"食品制造业":{code:"14",sect:"C 制造业",desc:"指粮食及饲料加工业以外的食品制造（焙烤、糖果、方便食品、乳制品、罐头等）。"},
+"酒、饮料和精制茶制造业":{code:"15",sect:"C 制造业",desc:"指酒精、酒、软饮料及精制茶的制造。"},
+"烟草制品业":{code:"16",sect:"C 制造业",desc:"指烟叶复烤、卷烟制造及其他烟草制品的加工。"},
+"纺织业":{code:"17",sect:"C 制造业",desc:"指棉、化纤、毛、麻、丝等纺织品的纺纱、织造及印染精加工。"},
+"纺织服装、服饰业":{code:"18",sect:"C 制造业",desc:"指以纺织面料为主要原料，制作各类服装、服饰（含针织服装）的制造。"},
+"皮革、毛皮、羽毛及其制品和制鞋业":{code:"19",sect:"C 制造业",desc:"指皮革鞣制、皮鞋及皮革制品、毛皮鞣制及制品、羽毛加工及制鞋等。"},
+"木材加工和木、竹、藤、棕、草制品业":{code:"20",sect:"C 制造业",desc:"指锯材、人造板、木制品及竹、藤、棕、草制品的制造。"},
+"家具制造业":{code:"21",sect:"C 制造业",desc:"指木质、竹藤、金属、塑料等各类家具的制造。"},
+"造纸和纸制品业":{code:"22",sect:"C 制造业",desc:"指纸浆制造、造纸及纸制品（纸箱、纸盒等）的制造。"},
+"印刷和记录媒介复制业":{code:"23",sect:"C 制造业",desc:"指书报刊印刷、包装装潢及其他印刷，以及录音录像等记录媒介的复制。"},
+"文教、工美、体育和娱乐用品制造业":{code:"24",sect:"C 制造业",desc:"指文化用品、体育用品、乐器、玩具、游艺器材、工艺美术及礼仪用品等的制造。"},
+"石油、煤炭及其他燃料加工业":{code:"25",sect:"C 制造业",desc:"指精炼石油产品、炼焦及煤制品、核燃料的加工。"},
+"化学原料和化学制品制造业":{code:"26",sect:"C 制造业",desc:"指基础化学原料、肥料、农药、涂料油墨、合成材料、专用化学品及日用化学品的制造。"},
+"医药制造业":{code:"27",sect:"C 制造业",desc:"指化学药品（原料药及制剂）、中成药、生物药品及卫生材料的制造。"},
+"化学纤维制造业":{code:"28",sect:"C 制造业",desc:"指纤维素纤维、合成纤维（涤纶、锦纶等）及氨纶等的制造。"},
+"橡胶和塑料制品业":{code:"29",sect:"C 制造业",desc:"指橡胶制品（轮胎、管带等）和塑料制品（薄膜、板材、日用品等）的制造。"},
+"非金属矿物制品业":{code:"30",sect:"C 制造业",desc:"指水泥、石灰石膏、砖瓦石材、玻璃、陶瓷、耐火材料、石墨及其他非金属矿物制品制造。"},
+"黑色金属冶炼和压延加工业":{code:"31",sect:"C 制造业",desc:"指炼铁、炼钢、钢压延加工及铁合金冶炼。"},
+"有色金属冶炼和压延加工业":{code:"32",sect:"C 制造业",desc:"指常用有色金属、贵金属、稀有稀土金属的冶炼及压延加工。"},
+"金属制品业":{code:"33",sect:"C 制造业",desc:"指结构性金属制品、金属工具、集装箱及金属包装容器、金属丝绳及日用品、通用零部件等制造。"},
+"通用设备制造业":{code:"34",sect:"C 制造业",desc:"指锅炉及原动设备、金属加工机械、泵阀压缩机、轴承齿轮、通用零部件及物料搬运设备的制造。"},
+"专用设备制造业":{code:"35",sect:"C 制造业",desc:"指矿山冶金建筑、化工木材、农牧渔、食品饮料、纺织服装、医疗仪器等专用设备的制造。"},
+"汽车制造业":{code:"36",sect:"C 制造业",desc:"指汽车整车、改装汽车、低速汽车、电车及汽车车身、零部件与配件的制造。"},
+"铁路、船舶、航空航天和其他运输设备制造业":{code:"37",sect:"C 制造业",desc:"指铁路机车车辆、船舶及相关装置、航空航天器及摩托车、自行车、非公路休闲车的制造。"},
+"电气机械和器材制造业":{code:"38",sect:"C 制造业",desc:"指电机、输配电及控制设备、电线电缆、电池、家用电力器具及其他电气器材的制造。"},
+"计算机、通信和其他电子设备制造业":{code:"39",sect:"C 制造业",desc:"指计算机、通信设备、广播电视设备、雷达导航、电子器件、电子元件及智能消费设备的制造。"},
+"仪器仪表制造业":{code:"40",sect:"C 制造业",desc:"指通用仪器仪表、专用仪器仪表、钟表与计时仪器、光学仪器及衡器的制造。"},
+"其他制造业":{code:"41",sect:"C 制造业",desc:"指上述未列明的其他制造业（如日用杂品等）。"},
+"废弃资源综合利用业":{code:"42",sect:"C 制造业",desc:"指从工农业生产及生活废料中回收有用生产资料，以及金属、非金属废料和碎屑的加工处理。"},
+"金属制品、机械和设备修理业":{code:"43",sect:"C 制造业",desc:"指金属制品、通用及专用机械与设备的修理与维护。"},
+"电力、热力生产和供应业":{code:"44",sect:"D 电力、热力、燃气及水生产和供应业",desc:"指火力、水力、核力及其他能源的电力生产，以及热力（蒸汽、热水）的生产和供应。"},
+"燃气生产和供应业":{code:"45",sect:"D 电力、热力、燃气及水生产和供应业",desc:"指天然气、液化石油气、煤气等燃气的生产、净化、储运和供应。"},
+"水的生产和供应业":{code:"46",sect:"D 电力、热力、燃气及水生产和供应业",desc:"指自来水的生产、净化、供给，以及污水处理及其再生利用、海水淡化等。"}
+};
+
 const P = DATA.periods, LB = DATA.period_labels;
-let cur = DATA.industries[0], mode = "cum";
+let cur = DATA.industries[0], mode = "cum", lastView = null;
+const YEAR_OFFSET_CUM = 11; // 每年累计期数（02..12）
+const YEAR_OFFSET_MON = 12; // 每年月数
 
 const listEl = document.getElementById("industryList");
 function buildList(filter=""){
@@ -118,48 +175,76 @@ document.getElementById("btnCum").onclick = ()=>{mode="cum";document.getElementB
 document.getElementById("btnMon").onclick = ()=>{mode="mon";document.getElementById("btnMon").classList.add("on");document.getElementById("btnCum").classList.remove("on");render();};
 document.getElementById("latestLabel").textContent = LB[P.length-1];
 
-function series(key, metric){
-  const arr = DATA.data[key][metric].slice();
-  if(mode==="cum") return arr;
-  const out = [null]; // 1-2月无单月拆分
-  for(let i=1;i<arr.length;i++){
-    out.push(arr[i]!=null&&arr[i-1]!=null ? +(arr[i]-arr[i-1]).toFixed(1) : null);
+// 根据当前模式，返回 {labels(全称), short(短标签), vals:{revenue,cost,profit}}
+function getView(){
+  const d = DATA.data[cur];
+  if(mode==="cum"){
+    return {labels: LB.slice(), short: P.map(p=>p.slice(2).replace("-","/")),
+            vals:{revenue:d.revenue.slice(), cost:d.cost.slice(), profit:d.profit.slice()}};
   }
-  return out;
+  // 单月值：1月、2月各取当年1-2月累计的一半；3月起为相邻累计之差
+  const perYear = {};
+  P.forEach((p,i)=>{ const y=+p.slice(0,4), m=+p.slice(5); (perYear[y]=perYear[y]||[]).push({m,i}); });
+  const years = Object.keys(perYear).map(Number).sort((a,b)=>a-b);
+  const labels=[], short=[], vals={revenue:[],cost:[],profit:[]};
+  years.forEach(y=>{
+    const ms = perYear[y].slice().sort((a,b)=>a.m-b.m);
+    const maxM = ms[ms.length-1].m;
+    const idxOf = m=>{ const x=ms.find(o=>o.m===m); return x?x.i:null; };
+    for(let m=1;m<=maxM;m++){
+      labels.push(`${y}年${m}月`);
+      short.push(`${String(y).slice(2)}/${m}`);
+      ["revenue","cost","profit"].forEach(k=>{
+        let v=null;
+        if(m===1||m===2){
+          const i2=idxOf(2);
+          if(i2!=null && d[k][i2]!=null) v=+(d[k][i2]/2).toFixed(1);
+        } else {
+          const i1=idxOf(m), i0=idxOf(m-1);
+          if(i1!=null&&i0!=null&&d[k][i1]!=null&&d[k][i0]!=null) v=+(d[k][i1]-d[k][i0]).toFixed(1);
+        }
+        vals[k].push(v);
+      });
+    }
+  });
+  return {labels, short, vals};
 }
+
 function fmt(v){return v==null?"—":v.toLocaleString("zh-CN",{maximumFractionDigits:1});}
-function yoy2026(metric){
-  const n2025 = 11;
-  const out = {};
-  for(let i=n2025;i<P.length;i++){
-    const a = DATA.data[cur][metric][i], b = DATA.data[cur][metric][i-n2025];
-    out[i] = (a!=null&&b!=null&&b!==0) ? (a/b-1)*100 : null;
-  }
-  return out;
+function yoyLast(view, metric){
+  const arr = view.vals[metric];
+  const i = arr.length-1;
+  const off = mode==="cum" ? YEAR_OFFSET_CUM : YEAR_OFFSET_MON;
+  const a = arr[i], b = (i-off>=0) ? arr[i-off] : null;
+  if(a!=null&&b!=null&&b!==0) return (a/b-1)*100;
+  return null;
 }
 
 function render(){
   document.getElementById("indTitle").textContent = cur;
-  const d = DATA.data[cur];
-  const last = P.length-1;
-  const revY = yoy2026("revenue")[last], costY = yoy2026("cost")[last], profY = yoy2026("profit")[last];
+  const info = IND_INFO[cur] || {code:"—",sect:"",desc:""};
+  document.getElementById("indMeta").innerHTML = `<span class="code">${info.code}</span>${info.sect}`;
+  document.getElementById("indDesc").innerHTML = `<b>行业释义：</b>${info.desc}`;
+  const view = getView(); lastView = view;
+  const last = view.labels.length-1;
+  const revY = yoyLast(view,"revenue"), costY = yoyLast(view,"cost"), profY = yoyLast(view,"profit");
   function yoyHtml(y){
     if(y==null) return "";
     const cls = y>=0?"up":"down", s = y>=0?"+":"";
     return `<div class="yoy ${cls}">同比 ${s}${y.toFixed(1)}%</div>`;
   }
+  const periodTag = mode==="cum" ? `${view.labels[last]}累计` : `${view.labels[last]}单月`;
   document.getElementById("cards").innerHTML = `
-    <div class="card c-rev"><div class="label">营业收入（${LB[last]}累计）</div><div class="val">${fmt(d.revenue[last])}<small>亿元</small></div>${yoyHtml(revY)}</div>
-    <div class="card c-cost"><div class="label">营业成本（${LB[last]}累计）</div><div class="val">${fmt(d.cost[last])}<small>亿元</small></div>${yoyHtml(costY)}</div>
-    <div class="card c-profit"><div class="label">利润总额（${LB[last]}累计）</div><div class="val">${fmt(d.profit[last])}<small>亿元</small></div>${yoyHtml(profY)}</div>`;
-  document.getElementById("chartHint").textContent = mode==="cum" ? "（累计值）" : "（单月值，1-2月为合并公布无单月拆分）";
-  drawLine("chartRev","revenue","#2563eb");
-  drawLine("chartCost","cost","#f59e0b");
-  drawLine("chartProfit","profit","#e11d48");
-  drawTable();
+    <div class="card c-rev"><div class="label">营业收入（${periodTag}）</div><div class="val">${fmt(view.vals.revenue[last])}<small>亿元</small></div>${yoyHtml(revY)}</div>
+    <div class="card c-cost"><div class="label">营业成本（${periodTag}）</div><div class="val">${fmt(view.vals.cost[last])}<small>亿元</small></div>${yoyHtml(costY)}</div>
+    <div class="card c-profit"><div class="label">利润总额（${periodTag}）</div><div class="val">${fmt(view.vals.profit[last])}<small>亿元</small></div>${yoyHtml(profY)}</div>`;
+  document.getElementById("chartHint").textContent = mode==="cum" ? "（累计值，统计局口径）" : "（单月值：1月、2月各为1-2月累计的一半，3月起为相邻累计之差）";
+  drawLine("chartRev","revenue","#2563eb",view);
+  drawLine("chartCost","cost","#f59e0b",view);
+  drawLine("chartProfit","profit","#e11d48",view);
+  drawTable(view);
 }
 
-const COLORS = {revenue:"#2563eb", cost:"#f59e0b", profit:"#e11d48"};
 function scale(vals,pad=0.08){
   let vs = vals.filter(v=>v!=null);
   let mn = Math.min(0,...vs), mx = Math.max(...vs);
@@ -167,15 +252,16 @@ function scale(vals,pad=0.08){
   const rng = mx-mn; mx += rng*pad; if(mn<0) mn -= rng*pad;
   return {mn,mx};
 }
-function drawLine(target, metric, color, h=320){
+function drawLine(target, metric, color, view, h=320){
   const box = document.getElementById(target);
   const W = box.clientWidth||800, H = h, L=70, R=20, T=16, B=60;
   const iw = W-L-R, ih = H-T-B;
-  const vals = series(cur,metric);
+  const labs = view.short, vals = view.vals[metric];
   const all = vals.filter(v=>v!=null);
   if(!all.length){box.innerHTML="<div style='color:#999;padding:40px;text-align:center'>暂无数据</div>";return;}
   const {mn,mx} = scale(all);
-  const X = i=> P.length===1? L+iw/2 : L + iw*i/(P.length-1);
+  const n = labs.length;
+  const X = i=> n===1? L+iw/2 : L + iw*i/(n-1);
   const Y = v=> T + ih*(1-(v-mn)/(mx-mn));
   let svg = `<svg width="100%" viewBox="0 0 ${W} ${H}">`;
   for(let g=0;g<=5;g++){
@@ -184,34 +270,32 @@ function drawLine(target, metric, color, h=320){
     svg += `<text x="${L-8}" y="${y+4}" text-anchor="end" font-size="11" fill="#8a93a3">${Math.round(v).toLocaleString()}</text>`;
   }
   if(mn<0){const y0=Y(0); svg += `<line x1="${L}" y1="${y0}" x2="${W-R}" y2="${y0}" stroke="#c3cad6" stroke-dasharray="4 3"/>`;}
-  P.forEach((p,i)=>{
+  labs.forEach((s,i)=>{
     const x = X(i);
-    svg += `<text x="${x}" y="${H-B+16}" font-size="10" fill="#8a93a3" text-anchor="end" transform="rotate(-38 ${x} ${H-B+16})">${LB[i].replace("年","'").replace("1-","/")}</text>`;
+    svg += `<text x="${x}" y="${H-B+16}" font-size="10" fill="#8a93a3" text-anchor="end" transform="rotate(-38 ${x} ${H-B+16})">${s}</text>`;
   });
   let pts=[];
   vals.forEach((v,i)=>{
     if(v==null)return;
     const x=X(i),y=Y(v);
     pts.push(`${x},${y}`);
-    svg+=`<circle cx="${x}" cy="${y}" r="3" fill="${color}"><title>${LB[i]} ${fmt(v)} 亿元</title></circle>`;
+    svg+=`<circle cx="${x}" cy="${y}" r="3" fill="${color}"><title>${view.labels[i]} ${fmt(v)} 亿元</title></circle>`;
   });
   if(pts.length) svg += `<polyline points="${pts.join(" ")}" fill="none" stroke="${color}" stroke-width="2"/>`;
   svg += `</svg>`;
   box.innerHTML = svg;
 }
-function drawTable(){
-  const d = DATA.data[cur];
-  const revM = series(cur,"revenue"), costM = series(cur,"cost"), profM = series(cur,"profit");
+function drawTable(view){
+  const revM = view.vals.revenue, costM = view.vals.cost, profM = view.vals.profit;
   let html = `<thead><tr><th>期间</th><th>营业收入</th><th>营业成本</th><th>利润总额</th></tr></thead><tbody>`;
-  for(let i=P.length-1;i>=0;i--){
-    const r=d.revenue[i],c=d.cost[i],p=d.profit[i];
-    html += `<tr><td>${LB[i]}</td><td>${fmt(mode==="cum"?r:revM[i])}</td><td>${fmt(mode==="cum"?c:costM[i])}</td><td class="${(mode==="cum"?p:profM[i])<0?"neg":""}">${fmt(mode==="cum"?p:profM[i])}</td></tr>`;
+  for(let i=view.labels.length-1;i>=0;i--){
+    html += `<tr><td>${view.labels[i]}</td><td>${fmt(revM[i])}</td><td>${fmt(costM[i])}</td><td class="${profM[i]<0?"neg":""}">${fmt(profM[i])}</td></tr>`;
   }
   html += `</tbody>`;
   document.getElementById("dataTable").innerHTML = html;
 }
 buildList(); render();
-window.addEventListener("resize", ()=>{drawLine("chartRev","revenue","#2563eb");drawLine("chartCost","cost","#f59e0b");drawLine("chartProfit","profit","#e11d48");});
+window.addEventListener("resize", ()=>{ if(lastView){drawLine("chartRev","revenue","#2563eb",lastView);drawLine("chartCost","cost","#f59e0b",lastView);drawLine("chartProfit","profit","#e11d48",lastView);} });
 </script>
 </body>
 </html>
