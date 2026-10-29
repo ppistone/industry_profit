@@ -14,6 +14,8 @@ body{font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;background
 header{background:var(--panel);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
 header h1{font-size:17px;font-weight:700}
 header .meta{font-size:12px;color:var(--sub)}
+.nav-link{font-size:12.5px;color:var(--blue);text-decoration:none;font-weight:600;white-space:nowrap}
+.nav-link:hover{text-decoration:underline}
 .layout{display:flex;flex:1;overflow:hidden}
 aside{width:250px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
 .search-wrap{padding:10px 12px;border-bottom:1px solid var(--border)}
@@ -86,7 +88,10 @@ svg text{font-family:inherit}
 <body>
 <header>
   <h1>分行业财务指标看板（规模以上工业企业）</h1>
-  <div class="meta">数据来源：国家统计局《全国规模以上工业企业利润》月度发布 · 累计值 · 单位：亿元 · 更新至 <span id="latestLabel"></span></div>
+  <div style="display:flex;gap:16px;align-items:center">
+    <span class="meta">数据来源：国家统计局《全国规模以上工业企业利润》月度发布 · 累计值 · 单位：亿元 · 更新至 <span id="latestLabel"></span></span>
+    <a class="nav-link" href="nonindustrial.html">非工业看板 →</a>
+  </div>
 </header>
 <div class="scope-note">
   <b>统计口径说明：</b>本看板覆盖《国民经济行业分类》（GB/T 4754-2017，2019年修订）中的全部 <b>41 个工业大类</b>（采矿业 B + 制造业 C + 电力/热力/燃气/水生产供应业 D），即国家统计局"规模以上工业企业"利润表的完整行业范围，无遗漏。

@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>分行业财务指标看板（非工业·上市公司代理）</title>
+<style>
+:root{
+  --bg:#f5f7fa; --panel:#ffffff; --border:#e5e8ee; --text:#1f2430; --sub:#6b7280;
+  --blue:#2563eb; --orange:#f59e0b; --red:#e11d48; --green:#059669; --purple:#7c3aed;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+header{background:var(--panel);border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+header h1{font-size:17px;font-weight:700}
+header .meta{font-size:12px;color:var(--sub)}
+.nav-link{font-size:12.5px;color:var(--blue);text-decoration:none;font-weight:600;white-space:nowrap}
+.nav-link:hover{text-decoration:underline}
+.layout{display:flex;flex:1;overflow:hidden}
+aside{width:250px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.search-wrap{padding:10px 12px;border-bottom:1px solid var(--border)}
+.search-wrap input{width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;outline:none}
+.search-wrap input:focus{border-color:var(--blue)}
+#industryList{flex:1;overflow-y:auto;padding:6px}
+#industryList button{display:block;width:100%;text-align:left;padding:8px 10px;border:none;background:none;border-radius:6px;font-size:13px;cursor:pointer;color:var(--text);line-height:1.4}
+#industryList button:hover{background:#f0f4ff}
+#industryList button.active{background:var(--purple);color:#fff;font-weight:600}
+main{flex:1;overflow-y:auto;padding:18px 22px}
+.main-head{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px}
+.main-head h2{font-size:20px}
+.ind-meta{font-size:12px;color:var(--sub);margin-bottom:6px}
+.ind-meta .code{display:inline-block;background:#eef2ff;color:#3730a3;border-radius:4px;padding:1px 7px;font-weight:600;margin-right:6px}
+.ind-desc{font-size:12.5px;color:#4b5563;background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:14px;line-height:1.65}
+.ind-desc b{color:var(--text)}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:12px 0 16px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.card .label{font-size:12px;color:var(--sub);margin-bottom:6px}
+.card .val{font-size:22px;font-weight:700}
+.card .val small{font-size:12px;font-weight:400;color:var(--sub);margin-left:4px}
+.card .yoy{font-size:12px;margin-top:4px}
+.up{color:var(--red)} .down{color:var(--green)}
+.card.c-rev .val{color:var(--blue)} .card.c-profit .val{color:var(--red)} .card.c-roe .val{color:var(--purple)}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:16px}
+.panel h3{font-size:14px;margin-bottom:10px;color:var(--text)}
+.panel .hint{font-size:11px;color:var(--sub);font-weight:400;margin-left:8px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
+th{background:#f8fafc;font-weight:600;position:sticky;top:0}
+td:first-child,th:first-child{text-align:left}
+td.neg{color:var(--green)}
+tr:hover td{background:#f8fafc}
+.footer-note{font-size:11px;color:var(--sub);margin-top:8px;line-height:1.8}
+.scope-note{font-size:12px;color:#5b6573;background:#f1f5ff;border:1px solid #c7d2fe;border-left:4px solid var(--purple);border-radius:8px;padding:9px 13px;margin:0 0 14px;line-height:1.75}
+.scope-note b{color:#4338ca}
+.sample-note{font-size:12px;color:#9a3412;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:9px 13px;margin:0 0 14px;line-height:1.7}
+.sample-note b{color:#9a3412}
+svg text{font-family:inherit}
+.combo-legend{display:flex;gap:14px;font-size:11px;color:var(--sub);margin:-4px 0 8px;flex-wrap:wrap}
+.combo-legend span{display:inline-block;width:12px;height:8px;border-radius:2px;margin-right:4px;vertical-align:0}
+.cl-line{background:#2563eb}.cl-up{background:#e11d48}.cl-dn{background:#059669}
+.comp-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.comp-col .comp-h{font-size:12px;font-weight:700;color:var(--text);margin-bottom:8px;border-left:3px solid var(--purple);padding-left:8px}
+.comp-item{font-size:13px;padding:5px 0;border-bottom:1px dashed var(--border);display:flex;gap:8px;align-items:baseline}
+.comp-t{font-family:ui-monospace,Consolas,monospace;background:#eef2ff;color:#3730a3;border-radius:4px;padding:1px 6px;font-size:12px;white-space:nowrap}
+.comp-item.muted{color:var(--sub);border:none}
+@media(max-width:640px){.comp-grid{grid-template-columns:1fr}}
+.contact-fab{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:50;display:flex;align-items:center;flex-direction:row-reverse}
+.contact-fab .fab-btn{writing-mode:vertical-rl;letter-spacing:3px;background:var(--purple);color:#fff;font-size:13px;font-weight:600;padding:16px 7px;border-radius:8px 0 0 8px;cursor:pointer;box-shadow:-2px 0 10px rgba(0,0,0,.15);user-select:none;white-space:nowrap}
+.contact-fab .qr-pop{position:absolute;right:46px;top:50%;transform:translateY(-50%);background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;box-shadow:0 8px 28px rgba(0,0,0,.18);width:200px;text-align:center;opacity:0;visibility:hidden;transition:opacity .18s;pointer-events:none}
+.contact-fab:hover .qr-pop,.contact-fab.open .qr-pop{opacity:1;visibility:visible}
+.contact-fab .qr-pop img{width:176px;height:176px;display:block;margin:0 auto;border-radius:6px;background:#f1f5f9}
+.contact-fab .qr-pop .qr-cap{font-size:12.5px;color:var(--sub);margin-top:9px;line-height:1.55}
+.contact-fab .qr-pop::after{content:"";position:absolute;right:-8px;top:50%;transform:translateY(-50%);border:8px solid transparent;border-left-color:#fff}
+#chartTip{position:fixed;z-index:99;background:rgba(31,36,48,.96);color:#fff;font-size:12px;line-height:1.75;padding:8px 11px;border-radius:8px;pointer-events:none;opacity:0;transition:opacity .06s;white-space:nowrap;box-shadow:0 6px 22px rgba(0,0,0,.28)}
+#chartTip.show{opacity:1}
+#chartTip .t-lab{font-weight:700;margin-bottom:4px;font-size:12.5px}
+#chartTip .t-row{display:flex;gap:14px;justify-content:space-between;align-items:baseline}
+#chartTip .t-k{opacity:.78}
+</style>
+</head>
+<body>
+<header>
+  <h1>分行业财务指标看板（非工业·上市公司代理）</h1>
+  <div style="display:flex;gap:16px;align-items:center">
+    <span class="meta">数据来源：上市公司财务汇总（申万一级行业·代理）· 年度 · 单位：亿元 / % · 更新至 <span id="latestLabel"></span></span>
+    <a class="nav-link" href="index.html">← 工业看板</a>
+  </div>
+</header>
+<div class="scope-note">
+  <b>看板定位：</b>本看板是《分行业财务指标看板（规模以上工业企业）》的<b>配套看板</b>，覆盖 GB/T 4754-2017 中 <b>56 个非工业大类</b>里"有上市公司代表"的部分（农林牧渔、建筑、交运、房地产、批零、社会服务、传媒、通信、金融、环保等）。
+  非工业行业没有国家统计局"工业企业利润"那样的月度全行业表，故以 <b>申万一级行业 + 上市公司财务汇总</b> 作代理（口径≠全行业普查，仅供趋势参考）。
+</div>
+<div class="sample-note" id="sampleNote">
+  <b>数据来源说明</b>：本看板数据由 <b>nonindustrial_template.csv</b> 经 <b>csv_to_json.py</b> 生成。首次发布含部分示例/占位数据（银行、房地产、农林牧渔为示意数字，其余为空），请按模板填写真实数据后重新生成。口径为上市公司代理，非全行业普查。
+</div>
+<div class="layout">
+  <aside>
+    <div class="search-wrap"><input id="search" type="text" placeholder="搜索行业…（↑/↓ 切换）"></div>
+    <div id="industryList"></div>
+  </aside>
+  <main>
+    <div class="main-head">
+      <h2 id="indTitle"></h2>
+      <div class="toggle" style="opacity:.5;pointer-events:none"><button class="on">年度值</button></div>
+    </div>
+    <div class="ind-meta" id="indMeta"></div>
+    <div class="ind-desc" id="indDesc"></div>
+    <div class="panel">
+      <h3>代表上市公司（龙头举例）<span class="hint">非投资建议，仅供参考</span></h3>
+      <div id="indCompanies"></div>
+    </div>
+    <div class="cards" id="cards"></div>
+    <div class="panel">
+      <h3>营业收入走势<span class="hint" id="chartHintRev"></span></h3>
+      <div class="combo-legend"><span class="cl-line" style="background:#2563eb"></span>数值（左轴·亿元）<span class="cl-up"></span>同比↑（右轴·%）<span class="cl-dn"></span>同比↓</div>
+      <div id="chartRev"></div>
+    </div>
+    <div class="panel">
+      <h3>净利润走势<span class="hint" id="chartHintProf"></span></h3>
+      <div class="combo-legend"><span class="cl-line" style="background:#e11d48"></span>数值（左轴·亿元）<span class="cl-up"></span>同比↑（右轴·%）<span class="cl-dn"></span>同比↓</div>
+      <div id="chartProfit"></div>
+    </div>
+    <div class="panel">
+      <h3>ROE 走势<span class="hint" id="chartHintRoe">（净资产收益率，右轴为同比变动百分点 pp）</span></h3>
+      <div class="combo-legend"><span class="cl-line" style="background:#7c3aed"></span>ROE（左轴·%）<span class="cl-up"></span>变动↑（右轴·pp）<span class="cl-dn"></span>变动↓</div>
+      <div id="chartRoe"></div>
+    </div>
+    <div class="panel">
+      <h3>明细数据<span class="hint">（含同比：红涨绿跌）</span></h3>
+      <div style="max-height:460px;overflow:auto">
+        <table id="dataTable"></table>
+      </div>
+      <div class="footer-note">
+        注：① 本看板为非工业行业的<b>上市公司代理</b>口径，用申万一级行业上市公司财务汇总近似反映对应 GB/T 大类的经营表现，<b>不等于全行业普查</b>。<br>
+        ② 指标：营业收入、净利润（归母净利润合计，单位亿元）、ROE（净资产收益率，%）。均为<b>年度</b>数据。<br>
+        ③ 同比：营业收入/净利润 = 本年 ÷ 上年 − 1；ROE 变动 = 本年 ROE − 上年 ROE（百分点 pp）。首年无同比。<br>
+        ④ 当前为示例数据，请按 <b>nonindustrial_template.csv</b> 填好后运行 <b>csv_to_json.py</b> 覆盖 nonindustrial_data.json 并刷新本页。<br>
+        ⑤ 行业释义依据《国民经济行业分类》（GB/T 4754-2017，2019年修订）。红涨绿跌：数值/同比为正→红，为负→绿。
+      </div>
+    </div>
+  </main>
+</div>
+<script>
+const DATA = __DATA__;
+
+// 非工业行业释义（GB/T 4754-2017 门类 + 申万一级行业代理说明）
+const IND_INFO = {
+"农林牧渔":{code:"A",sect:"A 农、林、牧、渔业",desc:"种植、畜牧、渔业及农林牧渔服务业。本看板以申万一级'农林牧渔'（含牧原、温氏等）上市公司作代理。"},
+"建筑装饰":{code:"E",sect:"E 建筑业",desc:"房屋建筑、土木工程、建筑安装与装饰。以申万一级'建筑装饰'（中国建筑、中国中铁等）上市公司作代理。"},
+"交通运输":{code:"G",sect:"G 交通运输、仓储和邮政业",desc:"铁路、公路、水路、航空、管道运输及仓储邮政。以申万一级'交通运输'（顺丰、京沪高铁等）上市公司作代理。"},
+"房地产":{code:"K",sect:"K 房地产业",desc:"房地产开发与经营、物业管理等。以申万一级'房地产'（保利、万科等）上市公司作代理。"},
+"商贸零售":{code:"F",sect:"F 批发和零售业",desc:"商品批发与零售。以申万一级'商贸零售'（永辉、王府井等）上市公司作代理。"},
+"社会服务":{code:"O/L",sect:"O 居民服务·L 租赁和商务服务",desc:"餐饮、旅游、酒店、教育、专业服务等。以申万一级'社会服务'（中国中免、锦江等）上市公司作代理。"},
+"传媒":{code:"R",sect:"R 文化、体育和娱乐业",desc:"新闻出版、广电影视、游戏、广告等。以申万一级'传媒'（分众、芒果超媒等）上市公司作代理。"},
+"通信":{code:"I",sect:"I 信息传输、软件和信息技术服务业",desc:"电信运营、通信设备。以申万一级'通信'（中国移动、中兴通讯等）上市公司作代理。"},
+"银行":{code:"J",sect:"J 金融业",desc:"货币金融服务（商业银行）。以申万一级'银行'（工行、招行等）上市公司作代理。"},
+"非银金融":{code:"J",sect:"J 金融业",desc:"资本市场服务与保险（券商、保险、信托）。以申万一级'非银金融'（中信证券、中国平安等）上市公司作代理。"},
+"环保":{code:"N",sect:"N 水利、环境和公共设施管理业",desc:"水务、固废、大气治理、生态修复。以申万一级'环保'（伟明环保、碧水源等）上市公司作代理。"}
+};
+
+// 各行业代表上市公司（龙头举例，非投资建议）。a=A股[代码,名称]，h=港股[代码,名称]
+const IND_COMPANIES = {
+"农林牧渔":{a:[["002714","牧原股份"],["300498","温氏股份"],["600598","北大荒"],["000876","新希望"]],h:[]},
+"建筑装饰":{a:[["601668","中国建筑"],["601390","中国中铁"],["601186","中国铁建"],["002081","金 螳 螂"]],h:[]},
+"交通运输":{a:[["601006","大秦铁路"],["600009","上海机场"],["002352","顺丰控股"],["601021","春秋航空"]],h:[["00696","中国民航信息网络"]]},
+"房地产":{a:[["600048","保利发展"],["000002","万 科A"],["001979","招商蛇口"],["600606","绿地控股"]],h:[["03333","中国恒大"],["01918","融创中国"]]},
+"商贸零售":{a:[["601933","永辉超市"],["600859","王府井"],["000759","中百集团"]],h:[["00980","联华超市"]]},
+"社会服务":{a:[["601888","中国中免"],["600754","锦江酒店"],["300144","宋城演艺"],["002607","中公教育"]],h:[["00780","同程旅行"]]},
+"传媒":{a:[["002027","分众传媒"],["300413","芒果超媒"],["002555","三七互娱"],["601928","凤凰传媒"]],h:[["00700","腾讯控股"],["09988","阿里巴巴"]]},
+"通信":{a:[["600941","中国移动"],["00788","中国联通"],["000063","中兴通讯"],["600050","中国联通"]],h:[["00941","中国移动"],["00762","中国联通"]]},
+"银行":{a:[["601398","工商银行"],["601939","建设银行"],["600036","招商银行"],["601166","兴业银行"]],h:[["01398","工商银行"],["03968","招商银行"]]},
+"非银金融":{a:[["600030","中信证券"],["601318","中国平安"],["601628","中国人寿"],["600837","海通证券"]],h:[["02318","中国平安"],["02628","中国人寿"]]},
+"环保":{a:[["603568","伟明环保"],["300070","碧水源"],["601200","上海环境"],["002573","清新环境"]],h:[]}
+};
+
+const P = DATA.periods, LB = DATA.period_labels || DATA.periods;
+let cur = DATA.industries[0], lastView = null;
+
+const listEl = document.getElementById("industryList");
+let visible = [];
+function buildList(filter=""){
+  visible = DATA.industries.filter(n=>n.includes(filter));
+  listEl.innerHTML = "";
+  visible.forEach(n=>{
+    const b = document.createElement("button");
+    b.textContent = n;
+    if(n===cur) b.classList.add("active");
+    b.onclick = ()=>setIndustry(n);
+    listEl.appendChild(b);
+  });
+}
+function setIndustry(name){
+  cur = name;
+  render();
+  buildList(document.getElementById("search").value.trim());
+  const act = listEl.querySelector("button.active");
+  if(act) act.scrollIntoView({block:"nearest"});
+}
+document.addEventListener("keydown", e=>{
+  if(e.key!=="ArrowDown" && e.key!=="ArrowUp") return;
+  if(e.ctrlKey||e.metaKey||e.altKey) return;
+  if(!visible.length) return;
+  let idx = visible.indexOf(cur);
+  if(idx<0) idx = 0;
+  idx = e.key==="ArrowDown" ? Math.min(visible.length-1, idx+1) : Math.max(0, idx-1);
+  if(visible[idx]!==cur){ e.preventDefault(); setIndustry(visible[idx]); }
+});
+document.getElementById("search").oninput = e=>buildList(e.target.value.trim());
+document.getElementById("latestLabel").textContent = LB[LB.length-1];
+
+function getView(){
+  const d = DATA.data[cur];
+  return {labels: LB.slice(), short: P.map(p=>String(p).slice(2)),
+          vals:{revenue:d.revenue.slice(), profit:d.profit.slice(), roe:d.roe.slice()}};
+}
+
+function fmt(v){return v==null?"—":v.toLocaleString("zh-CN",{maximumFractionDigits:1});}
+function showTip(e, html){ const t=document.getElementById("chartTip"); t.innerHTML=html; t.classList.add("show"); moveTip(e); }
+function moveTip(e){
+  const t=document.getElementById("chartTip");
+  const r=t.getBoundingClientRect();
+  let x=e.clientX+14, y=e.clientY+14;
+  if(x+r.width>window.innerWidth-8) x=e.clientX-r.width-14;
+  if(y+r.height>window.innerHeight-8) y=e.clientY-r.height-14;
+  t.style.left=x+"px"; t.style.top=y+"px";
+}
+function hideTip(){ document.getElementById("chartTip").classList.remove("show"); }
+function attachTips(box){
+  box.querySelectorAll("[data-lab]").forEach(el=>{
+    const lab=el.getAttribute("data-lab");
+    const val=el.getAttribute("data-val");
+    const yoy=el.getAttribute("data-yoy");
+    const yoyunit=el.getAttribute("data-yoyunit")||"%";
+    let yoyTxt="";
+    if(yoy!==""){ yoyTxt=`<div class="t-row"><span class="t-k">同比/变动</span><b class="t-val" style="color:${Number(yoy)>=0?'#ff8fa3':'#5eead4'}">${Number(yoy)>=0?'+':''}${yoy}${yoyunit}</b></div>`; }
+    const h=`<div class="t-lab">${lab}</div><div class="t-row"><span class="t-k">数值</span><b class="t-val">${val} 亿元</b></div>`+yoyTxt;
+    el.addEventListener("mouseenter", e=>showTip(e,h));
+    el.addEventListener("mousemove", moveTip);
+    el.addEventListener("mouseleave", hideTip);
+  });
+}
+function yoyRatio(arr,i){
+  if(i-1<0||arr[i]==null||arr[i-1]==null||arr[i-1]===0) return null;
+  return (arr[i]/arr[i-1]-1)*100;
+}
+function yoyTd(y){
+  if(y==null) return `<td>—</td>`;
+  const cls = y>=0 ? "up" : "down";
+  return `<td class="${cls}">${y>=0?"+":""}${y.toFixed(1)}%</td>`;
+}
+function yoyTdPp(pp){
+  if(pp==null) return `<td>—</td>`;
+  const cls = pp>=0 ? "up" : "down";
+  return `<td class="${cls}">${pp>=0?"+":""}${pp.toFixed(1)}</td>`;
+}
+function valStyle(y){ if(y==null) return ""; return `style="color:${y>=0?'var(--red)':'var(--green)'}"`; }
+function valCls(y){ if(y==null) return ""; return y>=0 ? "up" : "down"; }
+
+function render(){
+  document.getElementById("indTitle").textContent = cur;
+  const info = IND_INFO[cur] || {code:"—",sect:"",desc:""};
+  document.getElementById("indMeta").innerHTML = `<span class="code">${info.code}</span>${info.sect}`;
+  document.getElementById("indDesc").innerHTML = `<b>行业释义：</b>${info.desc}`;
+  const comp = IND_COMPANIES[cur] || {a:[],h:[]};
+  const compRow = (arr,empty)=> (arr&&arr.length? arr.map(x=>`<div class="comp-item"><span class="comp-t">${x[0]}</span>${x[1]}</div>`).join("") : `<div class="comp-item muted">${empty}</div>`);
+  document.getElementById("indCompanies").innerHTML =
+    `<div class="comp-grid"><div class="comp-col"><div class="comp-h">A股龙头</div>${compRow(comp.a,"暂无代表性A股标的")}</div>`+
+    `<div class="comp-col"><div class="comp-h">港股龙头</div>${compRow(comp.h,"暂无代表性港股标的")}</div></div>`;
+  const view = getView(); lastView = view;
+  const last = view.labels.length-1;
+  const revY = yoyRatio(view.vals.revenue,last), profY = yoyRatio(view.vals.profit,last);
+  const roePpv = (last-1>=0 && view.vals.roe[last]!=null && view.vals.roe[last-1]!=null)? view.vals.roe[last]-view.vals.roe[last-1] : null;
+  function yoyHtml(y){
+    if(y==null) return "";
+    const cls = y>=0?"up":"down", s = y>=0?"+":"";
+    return `<div class="yoy ${cls}">同比 ${s}${y.toFixed(1)}%</div>`;
+  }
+  const roeNote = roePpv!=null? `<div class="yoy ${roePpv>=0?'up':'down'}">较去年 ${roePpv>=0?'+':''}${roePpv.toFixed(1)} pp</div>` : "";
+  const year = view.labels[last];
+  document.getElementById("cards").innerHTML = `
+    <div class="card c-rev"><div class="label">营业收入（${year}）</div><div class="val" ${valStyle(revY)}>${fmt(view.vals.revenue[last])}<small>亿元</small></div>${yoyHtml(revY)}</div>
+    <div class="card c-profit"><div class="label">净利润（${year}）</div><div class="val" ${valStyle(profY)}>${fmt(view.vals.profit[last])}<small>亿元</small></div>${yoyHtml(profY)}</div>
+    <div class="card c-roe"><div class="label">ROE（${year}）</div><div class="val" ${valStyle(roePpv)}>${view.vals.roe[last]!=null?view.vals.roe[last].toFixed(1):'—'}<small>%</small></div>${roeNote}</div>`;
+  document.getElementById("chartHintRev").textContent = "（年度值，上市公司汇总）";
+  document.getElementById("chartHintProf").textContent = "（年度值，上市公司汇总）";
+  drawCombo("chartRev","revenue","#2563eb",view,"ratio");
+  drawCombo("chartProfit","profit","#e11d48",view,"ratio");
+  drawCombo("chartRoe","roe","#7c3aed",view,"pp");
+  drawTable(view);
+}
+
+function scale(vals,pad=0.08){
+  let vs = vals.filter(v=>v!=null);
+  let mn = Math.min(0,...vs), mx = Math.max(...vs);
+  if(mx===mn){mx = mn+1;}
+  const rng = mx-mn; mx += rng*pad; if(mn<0) mn -= rng*pad;
+  return {mn,mx};
+}
+function drawCombo(target, metric, color, view, yoyKind, h=340){
+  const box = document.getElementById(target);
+  const W = box.clientWidth||800, H = h, L=64, R=48, T=16, B=62;
+  const iw = W-L-R, ih = H-T-B;
+  const labs = view.short, vals = view.vals[metric];
+  const all = vals.filter(v=>v!=null);
+  if(!all.length){box.innerHTML="<div style='color:#999;padding:40px;text-align:center'>暂无数据（待填充）</div>";return;}
+  const {mn,mx} = scale(all);
+  const n = labs.length;
+  const X = i=> n===1? L+iw/2 : L + iw*i/(n-1);
+  const Y = v=> T + ih*(1-(v-mn)/(mx-mn));
+  const yo = vals.map((v,i)=>{
+    if(v==null||i-1<0||vals[i-1]==null) return null;
+    if(yoyKind==='ratio') return vals[i-1]!==0 ? (v/vals[i-1]-1)*100 : null;
+    return v-vals[i-1];
+  });
+  const yoVals = yo.filter(v=>v!=null);
+  let yMn=0,yMx=0;
+  if(yoVals.length){yMn=Math.min(0,...yoVals);yMx=Math.max(0,...yoVals);}
+  if(yMx===yMn){yMx=yMn+1;}
+  const r2=yMx-yMn; yMx+=r2*0.12; if(yMn<0) yMn-=r2*0.12; else yMn=-r2*0.12;
+  const Y2 = v=> T + ih*(1-(v-yMn)/(yMx-yMn));
+  const yUnit = yoyKind==='ratio'?'%':'pp';
+  let svg = `<svg width="100%" viewBox="0 0 ${W} ${H}">`;
+  for(let g=0;g<=5;g++){
+    const v = mn + (mx-mn)*g/5, y = Y(v);
+    svg += `<line x1="${L}" y1="${y}" x2="${W-R}" y2="${y}" stroke="#eef1f5"/>`;
+    svg += `<text x="${L-8}" y="${y+4}" text-anchor="end" font-size="11" fill="#8a93a3">${Math.round(v).toLocaleString()}</text>`;
+  }
+  if(mn<0){const y0=Y(0); svg += `<line x1="${L}" y1="${y0}" x2="${W-R}" y2="${y0}" stroke="#c3cad6" stroke-dasharray="4 3"/>`;}
+  const y0b=Y2(0);
+  svg += `<line x1="${L}" y1="${y0b}" x2="${W-R}" y2="${y0b}" stroke="#d8dee8"/>`;
+  svg += `<text x="${W-R+4}" y="${Y2(yMx)+4}" font-size="10" fill="#94a3b8">${yMx>=0?"+":""}${yMx.toFixed(0)}${yUnit}</text>`;
+  svg += `<text x="${W-R+4}" y="${y0b+4}" font-size="10" fill="#94a3b8">0${yUnit}</text>`;
+  svg += `<text x="${W-R+4}" y="${Y2(yMn)+4}" font-size="10" fill="#94a3b8">${yMn>=0?"+":""}${yMn.toFixed(0)}${yUnit}</text>`;
+  const barW = Math.max(3, iw/n*0.42);
+  yo.forEach((v,i)=>{
+    if(v==null)return;
+    const x=X(i), top=Y2(v), base=y0b, y=Math.min(top,base), bh=Math.abs(top-base);
+    const fill= v>=0? "#e11d48":"#059669";
+    svg += `<rect class="pt" x="${(x-barW/2).toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(bh,0.5).toFixed(1)}" fill="${fill}" opacity="0.5" data-lab="${view.labels[i]}" data-val="${fmt(vals[i])}" data-yoy="${v.toFixed(1)}" data-yoyunit="${yUnit}"></rect>`;
+    const shift = (i%2===0)?0:9;
+    let ty = v>=0 ? top-3-shift : top+9+shift;
+    ty = Math.max(T+8, Math.min(H-B-8, ty));
+    svg += `<text x="${x.toFixed(1)}" y="${ty.toFixed(1)}" font-size="8" text-anchor="middle" fill="${fill}" pointer-events="none">${v>=0?"+":""}${v.toFixed(1)}</text>`;
+  });
+  let pts=[];
+  vals.forEach((v,i)=>{
+    if(v==null)return;
+    const x=X(i),y=Y(v);
+    pts.push(`${x},${y}`);
+    svg+=`<circle cx="${x}" cy="${y}" r="3" fill="${color}" pointer-events="none"></circle>`;
+    const off = (i%2===0)?9:20;
+    const ly = Math.max(T+8, y-off);
+    svg+=`<text x="${x.toFixed(1)}" y="${ly.toFixed(1)}" font-size="8.5" text-anchor="middle" fill="${color}" pointer-events="none">${fmt(v)}</text>`;
+    svg+=`<circle class="pt" cx="${x}" cy="${y}" r="12" fill="transparent" data-lab="${view.labels[i]}" data-val="${fmt(v)}" data-yoy="${yo[i]!=null?yo[i].toFixed(1):''}" data-yoyunit="${yUnit}"></circle>`;
+  });
+  if(pts.length) svg += `<polyline points="${pts.join(" ")}" fill="none" stroke="${color}" stroke-width="2"/>`;
+  labs.forEach((s,i)=>{
+    const x = X(i);
+    svg += `<text x="${x}" y="${H-B+16}" font-size="10" fill="#8a93a3" text-anchor="end" transform="rotate(-38 ${x} ${H-B+16})">${s}</text>`;
+  });
+  svg += `</svg>`;
+  box.innerHTML = svg;
+  attachTips(box);
+}
+function drawTable(view){
+  const rev=view.vals.revenue, prof=view.vals.profit, roe=view.vals.roe;
+  let html = `<thead><tr><th>年度</th><th>营业收入(亿元)</th><th>营收同比</th><th>净利润(亿元)</th><th>净利同比</th><th>ROE(%)</th><th>ROE变动</th></tr></thead><tbody>`;
+  for(let i=view.labels.length-1;i>=0;i--){
+    const revY = yoyRatio(rev,i), profY = yoyRatio(prof,i);
+    const roePp = (i-1>=0 && roe[i]!=null && roe[i-1]!=null)? roe[i]-roe[i-1] : null;
+    const revCls = valCls(revY), profCls = valCls(profY), roeCls = valCls(roePp);
+    html += `<tr><td>${view.labels[i]}</td><td class="${revCls}">${fmt(rev[i])}</td>${yoyTd(revY)}<td class="${profCls}">${fmt(prof[i])}</td>${yoyTd(profY)}<td class="${roeCls}">${roe[i]!=null?roe[i].toFixed(1):'—'}</td>${yoyTdPp(roePp)}</tr>`;
+  }
+  html += `</tbody>`;
+  document.getElementById("dataTable").innerHTML = html;
+}
+  buildList(); render();
+window.addEventListener("resize", ()=>{ if(lastView){drawCombo("chartRev","revenue","#2563eb",lastView,"ratio");drawCombo("chartProfit","profit","#e11d48",lastView,"ratio");drawCombo("chartRoe","roe","#7c3aed",lastView,"pp");} });
+</script>
+<div class="contact-fab" id="contactFab">
+  <div class="fab-btn">联系作者</div>
+  <div class="qr-pop">
+    <img src="qrcode.png" alt="作者公众号二维码">
+    <div class="qr-cap">微信扫一扫<br>关注作者公众号</div>
+  </div>
+</div>
+<script>
+document.getElementById("contactFab").addEventListener("click", function(e){
+  if(window.matchMedia("(hover:none)").matches || e.target.classList.contains("fab-btn")){
+    this.classList.toggle("open");
+  }
+});
+</script>
+<div id="chartTip"></div>
+</body>
+</html>

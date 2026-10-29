@@ -1,7 +1,15 @@
 # 分行业财务指标看板（规模以上工业企业）
 
 > 本文件是项目的「永久存档」：把对话中沉淀的需求、方案、口径与操作全部文档化，不依赖任何聊天记录即可独立复现与维护。
-> 线上地址：https://ppistone.github.io/industry_profit/
+> 线上地址：https://ppistone.github.io/industry_profit/ （工业看板） · https://ppistone.github.io/industry_profit/nonindustrial.html （非工业看板）
+
+### 两个看板总览
+| 看板 | 页面 | 数据口径 | 覆盖行业 |
+|------|------|----------|----------|
+| A · 工业 | `index.html` | 国家统计局「规模以上工业企业利润」月度（累计/单月） | 41 个工业大类（采矿业+制造业+电热燃气水） |
+| B · 非工业 | `nonindustrial.html` | 申万一级行业上市公司财务汇总（**代理**，年度） | 11 个有上市公司代表的申万一级行业，对应 GB/T 中 56 个非工业大类 |
+
+> 说明：GB/T 4754-2017 共 97 个大类，其中 41 个为工业（A 看板全覆盖，无遗漏），其余 56 个为非工业（B 看板以上市公司代理覆盖其中有代表的部分）。非工业行业无国家统计局全行业月度利润表，故用上市公司财务作近似，口径≠全行业普查。两看板页眉可互相跳转。
 
 ## 一、项目简介
 一个**零依赖纯静态**网页看板，展示国家统计局「全国规模以上工业企业利润」月度发布中 **42 个工业行业（总计 + 41 个大类）** 的财务指标：
@@ -45,6 +53,12 @@
 | `qrcode.png` | 联系作者二维码 |
 | `UPDATE_GUIDE.md` | 更新与改版命令速查手册 |
 | `README.md` | 本文件（项目完整存档） |
+| **B 看板（非工业）** | |
+| `nonindustrial_template.html` | B 看板源模板（改版只改这里），含 `__DATA__` 占位符 |
+| `nonindustrial_data.json` | B 看板数据本体（由 CSV 生成/更新） |
+| `nonindustrial.html` | B 看板**生成产物**，禁止手改 |
+| `nonindustrial_template.csv` | B 看板**数据填写模板**（行业 × 年度 × 营收/净利/ROE） |
+| `csv_to_json.py` | B 看板数据接入：CSV → JSON → 重新生成 html |
 
 ## 五、如何更新 / 改版
 详见 [`UPDATE_GUIDE.md`](./UPDATE_GUIDE.md)，要点：
@@ -52,6 +66,12 @@
 - **改版**：只改 `template.html`，然后 `python update.py`（或手动重生成 index.html）并推送。
 - 铁律：**永远只改 `template.html`，`index.html` 一律由脚本生成**，避免两边手工改造成漂移。
 - 提交后 GitHub Pages 通常 1–3 分钟重建生效。
+
+### B 看板（非工业）如何填数据 / 改版
+- **填数据**：在 `nonindustrial_template.csv` 按列填写每个行业各年度的「营业收入(亿元) / 净利润(亿元) / ROE(%)」（留空＝暂无数据），然后运行 `python csv_to_json.py`——脚本会覆盖 `nonindustrial_data.json` 并重新生成 `nonindustrial.html`。
+- **改版**：只改 `nonindustrial_template.html`，再运行 `python csv_to_json.py`（或手动重生成 `nonindustrial.html`）。
+- 当前 `nonindustrial_data.json` 含部分示例/占位数据（银行、房地产、农林牧渔为示意数字，其余为空），用于演示框架；填好真实数据即覆盖。
+- 口径说明：B 看板为**上市公司代理**（申万一级行业汇总），仅覆盖 56 个非工业大类中"有上市公司代表"的部分，不等同于全行业普查。
 
 ## 六、git 推送说明
 - 仓库：`git@github.com:ppistone/industry_profit.git`（GitHub Pages）。
