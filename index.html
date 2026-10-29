@@ -51,6 +51,8 @@ td:first-child,th:first-child{text-align:left}
 td.neg{color:var(--green)}
 tr:hover td{background:#f8fafc}
 .footer-note{font-size:11px;color:var(--sub);margin-top:8px;line-height:1.8}
+.scope-note{font-size:12px;color:#5b6573;background:#fff7ed;border:1px solid #fed7aa;border-left:4px solid #f59e0b;border-radius:8px;padding:9px 13px;margin:0 0 14px;line-height:1.75}
+.scope-note b{color:#9a3412}
 svg text{font-family:inherit}
 .legend{display:flex;gap:16px;font-size:12px;color:var(--sub);margin-bottom:4px}
 .legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
@@ -86,6 +88,11 @@ svg text{font-family:inherit}
   <h1>分行业财务指标看板（规模以上工业企业）</h1>
   <div class="meta">数据来源：国家统计局《全国规模以上工业企业利润》月度发布 · 累计值 · 单位：亿元 · 更新至 <span id="latestLabel"></span></div>
 </header>
+<div class="scope-note">
+  <b>统计口径说明：</b>本看板覆盖《国民经济行业分类》（GB/T 4754-2017，2019年修订）中的全部 <b>41 个工业大类</b>（采矿业 B + 制造业 C + 电力/热力/燃气/水生产供应业 D），即国家统计局"规模以上工业企业"利润表的完整行业范围，无遗漏。
+  该标准共 <b>97 个大类</b>，其余 <b>56 个非工业大类</b>（农林牧渔、建筑、批发零售、交通运输、住宿餐饮、信息技术、金融、房地产、租赁商务、科研技术、水利环境、居民服务、教育、卫生、文化体育娱乐、公共管理、国际组织）不属于"工业企业"统计范畴，故未收录于此表。
+  非工业行业的财务跟踪请见配套看板（按上市公司行业分类代理）。
+</div>
 <div class="layout">
   <aside>
     <div class="search-wrap"><input id="search" type="text" placeholder="搜索行业…（↑/↓ 切换）"></div>
@@ -132,7 +139,8 @@ svg text{font-family:inherit}
         ③ 除 1/2 月外，单月值为差分推算，仅供趋势参考，非官方单月统计；<br>
         ④ 石油、煤炭及其他燃料加工业部分期次上年同期为亏损，同比不可比（统计局注1）。<br>
         ⑤ 行业释义依据《国民经济行业分类》（GB/T 4754-2017，2019年修订）。<br>
-        ⑥ 同比 = 本年同期 ÷ 上一年同期 − 1；首年（2025年1-2月/1月）无上年同期数据，留空。
+        ⑥ 同比 = 本年同期 ÷ 上一年同期 − 1；首年（2025年1-2月/1月）无上年同期数据，留空。<br>
+        ⑦ 行业范围：本表含 <b>41 个工业大类</b>（= 采矿业7 + 制造业31 + 电力热力燃气水3），为"工业企业利润"表的全部行业；GB/T 4754-2017 共 97 大类，其余 56 个非工业大类不在本表。
       </div>
     </div>
   </main>
